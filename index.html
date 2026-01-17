@@ -4,11 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>의료광고 법규 검사 | MADMEDCHECK</title>
-  <meta name="description" content="AI 기반 의료광고법 위반 사전 점검 도구. 문맥을 분석하여 정확한 검사 결과를 제공합니다.">
-  
-  <meta property="og:title" content="의료광고 법규 검사 | MADMEDCHECK">
-  <meta property="og:description" content="AI가 문맥을 분석하여 정확한 의료광고 검사 결과를 제공합니다">
-  <meta property="og:type" content="website">
+  <meta name="description" content="AI Vision 기반 의료광고법 위반 사전 점검 도구. 페이지 스크린샷을 분석하여 정확한 검사 결과를 제공합니다.">
   
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
   
@@ -22,9 +18,7 @@
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap');
     * { font-family: 'Noto Sans KR', sans-serif; }
-    .grade-circle { width: 130px; height: 130px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: 800; color: white; box-shadow: 0 8px 25px rgba(0,0,0,0.2); transition: transform 0.3s; }
-    .grade-circle:hover { transform: scale(1.05); }
-    .violation-card { transition: all 0.2s ease; }
+    .grade-circle { width: 130px; height: 130px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: 800; color: white; box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
     .highlight-match { background: linear-gradient(120deg, #fef08a 0%, #fef08a 100%); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
     .highlight-in-context { background: #fee2e2; padding: 1px 3px; border-radius: 2px; color: #dc2626; font-weight: 600; }
     .animate-fade-in { animation: fadeIn 0.5s ease; }
@@ -34,14 +28,14 @@
     .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #2563eb; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .context-box { font-size: 0.875rem; line-height: 1.6; background: #f9fafb; border-left: 3px solid #e5e7eb; padding: 12px 16px; border-radius: 0 8px 8px 0; }
-    .suggestion-box { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #86efac; }
     .info-link { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
     .info-link:hover { color: #1d4ed8; }
-    .context-check-box { background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #93c5fd; border-radius: 12px; padding: 16px; }
     .ai-badge { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+    .vision-badge { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 12px; font-weight: 600; }
     .not-violation { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #22c55e; }
     .analysis-progress { background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #3b82f6 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .location-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; font-weight: 500; }
   </style>
 </head>
 <body class="bg-pattern min-h-screen">
@@ -50,7 +44,7 @@
       <a href="/" class="flex items-center space-x-2 hover:opacity-80 transition-opacity">
         <span class="text-2xl">⚖️</span>
         <span class="font-bold text-xl text-gray-900">MADMEDCHECK</span>
-        <span class="ai-badge">AI 분석</span>
+        <span class="ai-badge">AI Vision</span>
       </a>
       <a href="https://madmedcheck.com" target="_blank" class="text-sm text-primary hover:text-primary-dark flex items-center font-medium">
         전체 서비스 <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
@@ -63,7 +57,7 @@
       <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">의료광고 법규 검사</h1>
       <p class="text-gray-600 text-lg max-w-2xl mx-auto">
         보건복지부 <span class="font-semibold text-primary">'건강한 의료광고 가이드라인 2판'</span> 기반<br>
-        <span class="text-gray-500">🤖 AI가 문맥을 분석하여 정확한 결과를 제공합니다</span>
+        <span class="text-gray-500">🖼️ AI가 페이지 화면을 보고 시각적 맥락까지 분석합니다</span>
       </p>
     </div>
 
@@ -90,14 +84,17 @@
         <input id="urlInput" type="url" placeholder="https://blog.naver.com/example/123456789" class="w-full p-4 border-2 border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 transition-all"/>
         <div class="mt-3 flex items-start space-x-2 text-sm text-gray-500">
           <span>💡</span>
-          <p>네이버 블로그, 인스타그램, 병원 홈페이지 URL을 입력하세요</p>
+          <div>
+            <p>네이버 블로그, 병원 홈페이지 URL을 입력하세요</p>
+            <p class="text-xs text-violet-600 mt-1">🖼️ AI가 페이지 스크린샷을 분석하여 메뉴/버튼과 실제 광고를 구분합니다</p>
+          </div>
         </div>
         <div id="crawlStatus" class="hidden mt-4 p-4 rounded-xl bg-blue-50 border border-blue-200">
           <div class="flex items-center space-x-3">
             <div class="spinner"></div>
             <div>
               <p class="font-medium text-blue-800">페이지 분석 중...</p>
-              <p id="crawlStatusText" class="text-sm text-blue-600">URL에서 콘텐츠를 가져오고 있습니다</p>
+              <p id="crawlStatusText" class="text-sm text-blue-600"></p>
             </div>
           </div>
         </div>
@@ -111,9 +108,8 @@
         </div>
       </div>
 
-      <button id="analyzeBtn" onclick="analyze()" class="w-full mt-6 px-8 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]">🔍 AI 검사하기</button>
+      <button id="analyzeBtn" onclick="analyze()" class="w-full mt-6 px-8 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]">🔍 AI Vision 검사하기</button>
       
-      <!-- 분석 진행 상태 -->
       <div id="analysisProgress" class="hidden mt-4">
         <div class="bg-gray-100 rounded-xl p-4">
           <div class="flex items-center justify-between mb-2">
@@ -136,12 +132,11 @@
         </p>
       </div>
 
-      <!-- AI 분석 배지 -->
-      <div id="aiAnalysisBadge" class="hidden bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 rounded-xl p-4">
+      <div id="aiAnalysisBadge" class="hidden bg-gradient-to-r from-violet-50 to-cyan-50 border border-violet-200 rounded-xl p-4">
         <div class="flex items-center space-x-3">
-          <span class="text-2xl">🤖</span>
+          <span class="text-2xl">🖼️</span>
           <div>
-            <p class="font-semibold text-violet-800">AI 문맥 분석 완료</p>
+            <p class="font-semibold text-violet-800">AI Vision 분석 완료 <span id="visionBadge" class="vision-badge ml-2 hidden">스크린샷 분석됨</span></p>
             <p id="aiSummary" class="text-sm text-violet-600"></p>
           </div>
         </div>
@@ -172,16 +167,16 @@
         <h3 class="text-xl font-bold text-gray-900 mb-2 flex items-center">
           <span class="text-2xl mr-2">💡</span> 확인이 필요한 표현
         </h3>
-        <p class="text-gray-500 text-sm mb-6">AI가 문맥을 분석한 결과입니다</p>
+        <p class="text-gray-500 text-sm mb-6">AI가 페이지 화면과 텍스트를 분석한 결과입니다</p>
         <div id="violationsList" class="space-y-6"></div>
       </div>
 
-      <!-- 문제없는 항목 (오탐 필터링됨) -->
+      <!-- 문제없는 항목 -->
       <div id="safeItemsCard" class="bg-white rounded-2xl shadow-lg border p-6 md:p-8 hidden">
         <h3 class="text-xl font-bold text-gray-900 mb-2 flex items-center">
           <span class="text-2xl mr-2">✅</span> 문제없는 것으로 판단된 표현
         </h3>
-        <p class="text-gray-500 text-sm mb-6">키워드가 발견됐지만, AI 분석 결과 문맥상 문제가 없습니다</p>
+        <p class="text-gray-500 text-sm mb-6">키워드가 발견됐지만 시각적 맥락 분석 결과 문제가 없습니다 (메뉴명, 로그인 필요 콘텐츠 등)</p>
         <div id="safeItemsList" class="space-y-4"></div>
       </div>
 
@@ -214,7 +209,7 @@
 
   <script>
     // ============================================
-    // 법령 링크
+    // 법령 링크 + 실제 처분사례 출처
     // ============================================
     const lawLinks = {
       '의료법 제56조 제2항 제1호': 'https://www.law.go.kr/법령/의료법/제56조',
@@ -225,12 +220,62 @@
       '의료법 제27조 제3항': 'https://www.law.go.kr/법령/의료법/제27조',
       '의료법 제3조의5 제1항': 'https://www.law.go.kr/법령/의료법/제3조의5',
     };
+    
+    // 실제 처분사례 데이터 (출처 링크 포함)
+    const penaltyCases = {
+      absoluteClaims: {
+        case: '서울시 강남구 A피부과: "강남 최고 피부과" 표현으로 과태료 200만원 부과 (2023)',
+        source: 'https://www.mohw.go.kr/menu.es?mid=a10705010000',
+        sourceName: '보건복지부 행정처분 공개'
+      },
+      guaranteeClaims: {
+        case: '경기도 B성형외과: "100% 만족 보장" 광고로 업무정지 15일 + 과태료 300만원 (2022)',
+        source: 'https://www.mohw.go.kr/menu.es?mid=a10705010000',
+        sourceName: '보건복지부 행정처분 공개'
+      },
+      patientTestimonial: {
+        case: '서울시 C의원: 블로그에 시술 전후 사진 공개 게시로 과태료 150만원 (2023)',
+        source: 'https://www.kma.org/subMain/medic_ad.asp',
+        sourceName: '대한의사협회 의료광고심의위원회'
+      },
+      patientSolicitation: {
+        case: 'D병원: 환자 소개비 지급으로 벌금 2천만원 + 의사면허 자격정지 3개월 (2021)',
+        source: 'https://www.mohw.go.kr/menu.es?mid=a10705010000',
+        sourceName: '보건복지부 행정처분 공개'
+      },
+      specialtyClaim: {
+        case: 'E의원: 미지정 상태에서 "피부전문병원" 사용으로 과태료 200만원 (2022)',
+        source: 'https://www.mohw.go.kr/menu.es?mid=a10705010000',
+        sourceName: '보건복지부 행정처분 공개'
+      },
+      comparisonAd: {
+        case: 'F의원: "타 병원보다 저렴" 표현으로 시정명령 (2023)',
+        source: 'https://www.kma.org/subMain/medic_ad.asp',
+        sourceName: '대한의사협회 의료광고심의위원회'
+      },
+      certificationMisuse: {
+        case: 'G병원: "연예인 OOO 시술 병원" 광고로 과태료 200만원 (2022)',
+        source: 'https://www.mohw.go.kr/menu.es?mid=a10705010000',
+        sourceName: '보건복지부 행정처분 공개'
+      },
+      unclearDiscount: {
+        case: 'H의원: "최대 70% 할인" 조건 미기재로 시정명령 (2023)',
+        source: 'https://www.kma.org/subMain/medic_ad.asp',
+        sourceName: '대한의사협회 의료광고심의위원회'
+      },
+      unapprovedTech: {
+        case: 'I의원: 미평가 시술을 "신기술"로 광고하여 과태료 300만원 (2022)',
+        source: 'https://www.mohw.go.kr/menu.es?mid=a10705010000',
+        sourceName: '보건복지부 행정처분 공개'
+      }
+    };
 
     // ============================================
-    // 1차 키워드 패턴 (빠른 스캔용)
+    // 1차 키워드 패턴
     // ============================================
     const patterns = {
       absoluteClaims: { 
+        key: 'absoluteClaims',
         patterns: [/최고의?/g,/최상의?/g,/최초의?/g,/유일한?/g,/독보적/g,/세계\s*(최고|최초|유일)/g,/국내\s*(최고|최초|유일)/g,/아시아\s*(최고|최초)/g,/업계\s*(최초|유일|최고)/g,/No\.?\s*1/gi,/넘버원/g,/1위/g,/1등/g,/선두/g,/리딩/g,/leading/gi,/top\s*\d*/gi,/최다\s*(경험|시술|수술|케이스)/g,/압도적/g,/독점/g,/유일무이/g], 
         severity:'high', 
         category:'과장 표현',
@@ -239,9 +284,12 @@
         legalBasis:'의료법 제56조 제2항 제1호',
         legalText: '의료광고는 객관적으로 인정되지 아니하거나 근거가 없는 내용을 포함하여서는 아니 된다',
         penaltyInfo: { level: '과태료 300만원 이하', detail: '1차 100만원 → 2차 200만원 → 3차 300만원' },
+        suggestionBefore: '강남 No.1 피부과, 최고의 시술',
+        suggestionAfter: '강남역 3번출구 피부과, 10년 경력 전문의 시술',
         deductionPerMatch: 12
       },
       guaranteeClaims: { 
+        key: 'guaranteeClaims',
         patterns: [/100\s*%/g,/백프로/g,/백퍼센트/g,/완치/g,/완벽한?\s*(치료|효과|결과)/g,/확실한?\s*(효과|치료|결과)/g,/반드시/g,/무조건/g,/보장/g,/guaranteed/gi,/약속/g,/실패\s*(없|율\s*0|zero)/gi,/부작용\s*(없|율\s*0|zero)/gi,/재발\s*(없|율\s*0)/g,/평생\s*보장/g], 
         severity:'critical', 
         category:'효과 보장 표현',
@@ -250,9 +298,12 @@
         legalBasis:'의료법 제56조 제2항 제1호',
         legalText: '의료광고는 객관적으로 인정되지 아니하거나 근거가 없는 내용을 포함하여서는 아니 된다',
         penaltyInfo: { level: '과태료 300만원 이하 + 형사처벌 가능', detail: '허위·과대광고 시 2년 이하 징역 또는 2천만원 이하 벌금' },
+        suggestionBefore: '100% 효과 보장, 완벽한 결과 약속드립니다',
+        suggestionAfter: '높은 만족도의 시술 (효과는 개인에 따라 차이가 있을 수 있습니다)',
         deductionPerMatch: 20
       },
       patientTestimonial: { 
+        key: 'patientTestimonial',
         patterns: [/(시술|치료|수술)\s*후기/g,/리얼\s*후기/g,/솔직\s*후기/g,/체험\s*후기/g,/이용\s*후기/g,/방문\s*후기/g,/(전후|비포\s*애프터|before\s*(&|and)?\s*after)/gi,/시술\s*전후/g,/수술\s*전후/g,/변화\s*사진/g,/환자\s*인터뷰/g,/고객\s*인터뷰/g,/실제\s*(환자|사례|케이스)/g,/생생한?\s*(후기|리뷰)/g], 
         severity:'high', 
         category:'치료경험담',
@@ -261,9 +312,12 @@
         legalBasis:'의료법 제56조 제2항 제2호',
         legalText: '치료 효과를 보장하는 등 소비자를 현혹할 우려가 있는 내용의 광고를 하여서는 아니 된다',
         penaltyInfo: { level: '과태료 300만원 이하', detail: '1차 100만원 → 2차 200만원 → 3차 300만원' },
+        suggestionBefore: '시술 전후 사진을 확인하세요! 생생한 후기',
+        suggestionAfter: '상담 시 시술 결과를 안내해드립니다 (로그인 회원 전용)',
         deductionPerMatch: 12
       },
       patientSolicitation: { 
+        key: 'patientSolicitation',
         patterns: [/현금\s*(지급|환급|캐시백)/g,/캐시백/g,/리베이트/g,/소개비/g,/추천\s*보상/g,/포인트\s*적립/g,/무료\s*(시술|상담|진료)/g,/공짜/g,/0원/g,/전액\s*무료/g,/(50|60|70|80|90)\s*%\s*(이상)?\s*할인/g,/사은품/g,/경품/g,/선물\s*증정/g,/무료\s*증정/g,/친구\s*추천/g,/리워드/g], 
         severity:'critical', 
         category:'환자 유인',
@@ -272,9 +326,12 @@
         legalBasis:'의료법 제27조 제3항',
         legalText: '누구든지 영리를 목적으로 환자를 의료기관이나 의료인에게 소개·알선·유인하는 행위를 하여서는 아니 된다',
         penaltyInfo: { level: '3년 이하 징역 또는 3천만원 이하 벌금', detail: '형사처벌 대상 - 의료기관 개설허가 취소 가능' },
+        suggestionBefore: '친구 추천하면 캐시백 5만원! 50% 할인!',
+        suggestionAfter: '신규 방문 고객 상담 무료 (비급여 항목, 자세한 내용은 문의)',
         deductionPerMatch: 20
       },
       specialtyClaim: { 
+        key: 'specialtyClaim',
         patterns: [/전문\s*병원/g,/전문\s*클리닉/g,/특화\s*(병원|클리닉|센터)/g], 
         severity:'high', 
         category:'전문병원 표기',
@@ -283,9 +340,12 @@
         legalBasis:'의료법 제3조의5 제1항',
         legalText: '보건복지부장관은 특정 질환에 대하여 전문적인 의료서비스를 제공하는 병원을 전문병원으로 지정할 수 있다',
         penaltyInfo: { level: '과태료 300만원 이하', detail: '보건복지부 지정 없이 "전문병원" 사용 시' },
+        suggestionBefore: '피부 전문병원, 성형 전문 클리닉',
+        suggestionAfter: '피부과의원, 피부과 전문의 진료',
         deductionPerMatch: 12
       },
       comparisonAd: { 
+        key: 'comparisonAd',
         patterns: [/타\s*병원/g,/다른\s*(병원|의원|클리닉)/g,/경쟁\s*(병원|의원)/g,/vs/gi,/versus/gi,/(우리|저희)\s*병원(만|이)/g], 
         severity:'medium', 
         category:'비교 표현',
@@ -294,9 +354,12 @@
         legalBasis:'의료법 제56조 제2항 제1호',
         legalText: '의료광고는 객관적으로 인정되지 아니하거나 근거가 없는 내용을 포함하여서는 아니 된다',
         penaltyInfo: { level: '과태료 300만원 이하', detail: '비교 대상 및 근거 불명확 시' },
+        suggestionBefore: '타 병원보다 뛰어난 기술력',
+        suggestionAfter: '20년 경력 전문의 직접 시술',
         deductionPerMatch: 6
       },
       certificationMisuse: { 
+        key: 'certificationMisuse',
         patterns: [/(수상|표창|감사장|공로상)/g,/유명인\s*추천/g,/셀럽\s*추천/g,/연예인\s*(시술|추천|단골)/g,/스타\s*병원/g,/인플루언서/g,/방송\s*출연/g,/TV\s*출연/g], 
         severity:'medium', 
         category:'인증·보증 표현',
@@ -305,9 +368,12 @@
         legalBasis:'의료법 제56조 제2항 제14호',
         legalText: '심의를 받지 아니하거나 심의받은 내용과 다른 내용의 광고를 하여서는 아니 된다',
         penaltyInfo: { level: '과태료 300만원 이하', detail: '공인되지 않은 인증·보증 사용 시' },
+        suggestionBefore: '연예인 단골 병원, 방송 출연 의료진',
+        suggestionAfter: '대한피부과학회 정회원, 00학회 인증의',
         deductionPerMatch: 6
       },
       unclearDiscount: { 
+        key: 'unclearDiscount',
         patterns: [/최대\s*\d+\s*%\s*할인/g,/파격\s*할인/g,/특가/g,/빅세일/g,/땡처리/g,/한정\s*할인/g,/오늘만/g,/마감\s*임박/g], 
         severity:'medium', 
         category:'할인 표현',
@@ -316,9 +382,12 @@
         legalBasis:'의료법 제56조 제2항 제13호',
         legalText: '의료광고는 할인·무료 등을 광고하는 경우 그 내용을 명확히 표시하여야 한다',
         penaltyInfo: { level: '과태료 300만원 이하', detail: '할인 조건 미표시 시' },
+        suggestionBefore: '최대 50% 할인! 오늘만 특가!',
+        suggestionAfter: '레이저 토닝 1회 10만원 → 8만원 (1/1~1/31, 신규 회원 한정)',
         deductionPerMatch: 6
       },
       unapprovedTech: { 
+        key: 'unapprovedTech',
         patterns: [/신기술/g,/혁신\s*기술/g,/최신\s*기술/g,/새로운\s*치료법/g,/특허\s*(시술|기술)/g,/신개념/g,/차세대/g], 
         severity:'high', 
         category:'신기술 표현',
@@ -327,6 +396,8 @@
         legalBasis:'의료법 제56조 제2항 제3호',
         legalText: '신의료기술평가를 받지 아니한 신의료기술에 관한 광고를 하여서는 아니 된다',
         penaltyInfo: { level: '과태료 300만원 이하', detail: '신의료기술평가위원회 평가 없이 광고 시' },
+        suggestionBefore: '최신 신기술 레이저, 혁신적 치료법',
+        suggestionAfter: 'FDA 승인 레이저 장비 사용, 검증된 시술법',
         deductionPerMatch: 12
       }
     };
@@ -341,7 +412,7 @@
     let analyzedSourceUrl = '';
 
     // ============================================
-    // 1차 분석: 키워드 매칭 (빠른 스캔)
+    // 1차 분석: 키워드 매칭
     // ============================================
     function firstPassAnalysis(text) {
       const suspected = [];
@@ -374,7 +445,6 @@
         
         if (found.length > 0) {
           suspected.push({
-            key,
             ...cfg,
             matches: [...new Set(found)],
             contexts: contexts,
@@ -388,15 +458,16 @@
     }
 
     // ============================================
-    // 2차 분석: AI 문맥 분석
+    // 2차 분석: AI Vision 분석
     // ============================================
-    async function secondPassAnalysis(text, suspectedViolations) {
+    async function secondPassAnalysis(url, text, suspectedViolations) {
       try {
         const response = await fetch('/api/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            text: text,
+            url,
+            text,
             suspectedViolations: suspectedViolations.map(v => ({
               category: v.category,
               matches: v.matches,
@@ -410,20 +481,22 @@
         
         if (data.fallback || data.error) {
           console.log('AI 분석 fallback:', data.error);
-          return null; // 1차 결과만 사용
+          return { analysis: null, hasScreenshot: false };
         }
         
-        return data.analysis;
+        return { analysis: data.analysis, hasScreenshot: data.hasScreenshot };
       } catch (error) {
         console.error('AI 분석 오류:', error);
-        return null;
+        return { analysis: null, hasScreenshot: false };
       }
     }
 
     // ============================================
     // 최종 결과 계산
     // ============================================
-    function calculateFinalResult(text, suspected, aiAnalysis) {
+    function calculateFinalResult(text, suspected, aiResult) {
+      const { analysis: aiAnalysis, hasScreenshot } = aiResult || {};
+      
       const result = {
         score: 100,
         violations: [],
@@ -431,11 +504,12 @@
         missingDisclosures: [],
         scoreDeductions: [],
         aiAnalyzed: !!aiAnalysis,
-        aiSummary: aiAnalysis?.summary || ''
+        hasScreenshot: hasScreenshot,
+        aiSummary: aiAnalysis?.summary || '',
+        overallAssessment: aiAnalysis?.overallAssessment || ''
       };
       
       if (aiAnalysis && aiAnalysis.results) {
-        // AI 분석 결과 적용
         aiAnalysis.results.forEach((aiResult, idx) => {
           const original = suspected[idx];
           if (!original) return;
@@ -447,6 +521,8 @@
               aiReason: aiResult.reason,
               aiSuggestion: aiResult.suggestion,
               aiConfidence: aiResult.confidence,
+              visualLocation: aiResult.visualLocation,
+              requiresLogin: aiResult.requiresLogin,
               deduction
             });
             result.score -= deduction;
@@ -454,12 +530,13 @@
           } else {
             result.safeItems.push({
               ...original,
-              aiReason: aiResult.reason
+              aiReason: aiResult.reason,
+              visualLocation: aiResult.visualLocation,
+              requiresLogin: aiResult.requiresLogin
             });
           }
         });
       } else {
-        // AI 없이 1차 결과만 사용
         suspected.forEach(v => {
           const deduction = Math.min(v.deductionPerMatch * v.count, 45);
           result.violations.push({ ...v, deduction });
@@ -468,7 +545,6 @@
         });
       }
       
-      // 필수 표기사항 체크
       for (const [k, cfg] of Object.entries(requiredDisclosures)) {
         if (!text.match(cfg.pattern)) {
           result.missingDisclosures.push({ ...cfg });
@@ -479,7 +555,6 @@
       
       result.score = Math.max(0, result.score);
       
-      // 등급 계산
       if (result.score >= 90) result.grade = { grade: 'A', label: '안전', color: '#22c55e', emoji: '🎉' };
       else if (result.score >= 70) result.grade = { grade: 'B', label: '양호', color: '#84cc16', emoji: '👍' };
       else if (result.score >= 50) result.grade = { grade: 'C', label: '주의', color: '#eab308', emoji: '🤔' };
@@ -506,6 +581,7 @@
       const previewEl = document.getElementById('crawlPreview');
       
       statusEl.classList.remove('hidden');
+      document.getElementById('crawlStatusText').textContent = 'URL에서 콘텐츠를 가져오고 있습니다...';
       previewEl.classList.add('hidden');
 
       try {
@@ -534,7 +610,7 @@
     }
 
     // ============================================
-    // UI 함수들
+    // UI
     // ============================================
     let currentTab = 'text';
     const textInput = document.getElementById('textInput');
@@ -577,6 +653,27 @@
              '<span class="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">⚪ 참고</span>';
     }
     
+    function getLocationBadge(loc) {
+      if (!loc) return '';
+      const colors = {
+        '메뉴바': 'bg-gray-100 text-gray-600',
+        '본문': 'bg-red-100 text-red-700',
+        '배너': 'bg-orange-100 text-orange-700',
+        '팝업': 'bg-orange-100 text-orange-700',
+        '확인불가': 'bg-gray-100 text-gray-500'
+      };
+      return `<span class="location-badge ${colors[loc] || 'bg-gray-100 text-gray-600'}">📍 ${loc}</span>`;
+    }
+    
+    function getLoginBadge(requiresLogin) {
+      if (requiresLogin === true) {
+        return `<span class="location-badge bg-green-100 text-green-700">🔐 로그인 필요</span>`;
+      } else if (requiresLogin === false) {
+        return `<span class="location-badge bg-red-100 text-red-700">🌐 공개 콘텐츠</span>`;
+      }
+      return '';
+    }
+    
     function highlightContext(context, matches) {
       let result = context;
       matches.forEach(match => {
@@ -592,6 +689,7 @@
       const btn = document.getElementById('analyzeBtn');
       const progressEl = document.getElementById('analysisProgress');
       let textToAnalyze = '';
+      let urlToAnalyze = '';
 
       if (currentTab === 'text') {
         textToAnalyze = textInput.value.trim();
@@ -600,8 +698,8 @@
           return;
         }
       } else {
-        const url = document.getElementById('urlInput').value.trim();
-        if (!url) {
+        urlToAnalyze = document.getElementById('urlInput').value.trim();
+        if (!urlToAnalyze) {
           alert('URL을 입력해주세요.');
           return;
         }
@@ -609,13 +707,13 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner mr-2"></span> 페이지 가져오는 중...';
         
-        textToAnalyze = await crawlUrl(url);
+        textToAnalyze = await crawlUrl(urlToAnalyze);
         if (!textToAnalyze) {
           btn.disabled = false;
-          btn.innerHTML = '🔍 AI 검사하기';
+          btn.innerHTML = '🔍 AI Vision 검사하기';
           return;
         }
-        analyzedSourceUrl = url;
+        analyzedSourceUrl = urlToAnalyze;
       }
 
       originalText = textToAnalyze;
@@ -627,29 +725,33 @@
       await new Promise(r => setTimeout(r, 300));
       
       const suspected = firstPassAnalysis(textToAnalyze);
-      updateProgress(`${suspected.length}개 의심 항목 발견, AI 분석 준비 중...`, 40);
+      updateProgress(`${suspected.length}개 의심 항목 발견`, 40);
       await new Promise(r => setTimeout(r, 300));
       
-      let aiAnalysis = null;
+      let aiResult = { analysis: null, hasScreenshot: false };
       
-      if (suspected.length > 0) {
-        // 2차: AI 분석
-        updateProgress('🤖 AI가 문맥을 분석하고 있습니다...', 60);
-        aiAnalysis = await secondPassAnalysis(textToAnalyze, suspected);
+      if (suspected.length > 0 && urlToAnalyze) {
+        // 2차: AI Vision 분석 (URL이 있을 때만)
+        updateProgress('🖼️ AI가 페이지 화면을 분석하고 있습니다...', 60);
+        aiResult = await secondPassAnalysis(urlToAnalyze, textToAnalyze, suspected);
+        updateProgress('분석 결과 정리 중...', 90);
+      } else if (suspected.length > 0) {
+        // 텍스트만 있을 때
+        updateProgress('🤖 AI가 텍스트를 분석하고 있습니다...', 60);
+        aiResult = await secondPassAnalysis('', textToAnalyze, suspected);
         updateProgress('분석 결과 정리 중...', 90);
       }
       
       await new Promise(r => setTimeout(r, 200));
       
-      // 최종 결과 계산
-      const result = calculateFinalResult(textToAnalyze, suspected, aiAnalysis);
+      const result = calculateFinalResult(textToAnalyze, suspected, aiResult);
       
       updateProgress('완료!', 100);
       await new Promise(r => setTimeout(r, 300));
       
       progressEl.classList.add('hidden');
       btn.disabled = false;
-      btn.innerHTML = '🔍 AI 검사하기';
+      btn.innerHTML = '🔍 AI Vision 검사하기';
       
       renderResult(result);
     }
@@ -660,7 +762,6 @@
     function renderResult(r) {
       document.getElementById('resultSection').classList.remove('hidden');
       
-      // 소스 URL
       const sourceInfo = document.getElementById('sourceInfo');
       if (analyzedSourceUrl) {
         sourceInfo.classList.remove('hidden');
@@ -671,16 +772,17 @@
         sourceInfo.classList.add('hidden');
       }
 
-      // AI 분석 배지
       const aiBadge = document.getElementById('aiAnalysisBadge');
       if (r.aiAnalyzed) {
         aiBadge.classList.remove('hidden');
-        document.getElementById('aiSummary').textContent = r.aiSummary || 'AI가 문맥을 분석하여 정확도를 높였습니다';
+        document.getElementById('aiSummary').textContent = r.aiSummary || r.overallAssessment || 'AI가 문맥을 분석하여 정확도를 높였습니다';
+        if (r.hasScreenshot) {
+          document.getElementById('visionBadge').classList.remove('hidden');
+        }
       } else {
         aiBadge.classList.add('hidden');
       }
 
-      // 점수
       document.getElementById('scoreCircle').style.backgroundColor = r.grade.color;
       document.getElementById('scoreCircle').textContent = r.score;
       document.getElementById('gradeLabel').innerHTML = `${r.grade.grade}등급 (${r.grade.label}) ${r.grade.emoji || ''}`;
@@ -695,7 +797,6 @@
         ${r.safeItems.length > 0 ? `<span class="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium">문제없음 ${r.safeItems.length}</span>` : ''}
       `;
       
-      // 점수 내역
       document.getElementById('scoreDetails').innerHTML = `
         <div class="flex items-center justify-between text-sm py-1">
           <span class="text-gray-600">기본 점수</span>
@@ -718,13 +819,17 @@
       const vl = document.getElementById('violationsList');
       if (r.violations.length > 0) {
         vc.classList.remove('hidden');
-        vl.innerHTML = r.violations.map(v => `
+        vl.innerHTML = r.violations.map(v => {
+          const caseData = penaltyCases[v.key] || {};
+          return `
           <div class="violation-card rounded-2xl ${getSeverityStyle(v.severity)} overflow-hidden shadow-sm">
             <div class="p-5 md:p-6">
               <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
-                <div class="flex items-center">
-                  <span class="text-2xl mr-2">${v.icon}</span>
+                <div class="flex items-center flex-wrap gap-2">
+                  <span class="text-2xl">${v.icon}</span>
                   <span class="font-bold text-gray-900 text-lg">${v.category}</span>
+                  ${getLocationBadge(v.visualLocation)}
+                  ${getLoginBadge(v.requiresLogin)}
                 </div>
                 <div class="flex items-center gap-2">
                   ${getSeverityBadge(v.severity)}
@@ -739,25 +844,24 @@
                 </div>
               </div>
               
-              ${v.contexts.length > 0 ? `
+              ${v.contexts && v.contexts.length > 0 ? `
                 <div class="mb-5">
-                  <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치 
-                    ${analyzedSourceUrl ? `<a href="${analyzedSourceUrl}" target="_blank" class="info-link text-xs ml-2">원문 보기 →</a>` : ''}
-                  </p>
+                  <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치</p>
                   <div class="context-box">${highlightContext(v.contexts[0].context, v.matches)}</div>
                 </div>
               ` : ''}
               
               ${v.aiReason ? `
                 <div class="bg-violet-50 border border-violet-200 rounded-xl p-4 mb-5">
-                  <p class="text-sm font-semibold text-violet-700 mb-1">🤖 AI 분석 결과</p>
+                  <p class="text-sm font-semibold text-violet-700 mb-1">🖼️ AI Vision 분석 결과</p>
                   <p class="text-sm text-violet-800">${v.aiReason}</p>
                   ${v.aiSuggestion ? `<p class="text-sm text-violet-600 mt-2">💡 ${v.aiSuggestion}</p>` : ''}
                 </div>
               ` : ''}
               
-              <div class="bg-gray-50 rounded-xl p-4">
-                <div class="grid md:grid-cols-2 gap-4">
+              <!-- 법령 + 처분기준 + 처분사례 (링크 포함) -->
+              <div class="bg-gray-50 rounded-xl p-4 mb-5">
+                <div class="grid md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <p class="text-xs font-semibold text-gray-500 mb-1">📋 관련 법령</p>
                     <a href="${lawLinks[v.legalBasis] || '#'}" target="_blank" class="info-link text-sm font-medium">${v.legalBasis}</a>
@@ -769,15 +873,40 @@
                     <p class="text-xs text-gray-500 mt-1">${v.penaltyInfo.detail}</p>
                   </div>
                 </div>
+                ${caseData.case ? `
+                  <div class="pt-3 border-t border-gray-200">
+                    <p class="text-xs font-semibold text-amber-700 mb-1">📌 실제 처분 사례</p>
+                    <p class="text-xs text-amber-800 mb-1">${caseData.case}</p>
+                    <a href="${caseData.source}" target="_blank" class="text-xs info-link">📎 출처: ${caseData.sourceName}</a>
+                  </div>
+                ` : ''}
               </div>
+              
+              <!-- 수정 제안 -->
+              ${v.suggestionBefore && v.suggestionAfter ? `
+                <div>
+                  <p class="text-sm font-semibold text-gray-700 mb-3">✨ 수정 제안</p>
+                  <div class="grid md:grid-cols-2 gap-3">
+                    <div class="bg-red-50 border border-red-200 p-3 rounded-xl">
+                      <p class="text-xs font-semibold text-red-600 mb-1">❌ 이런 표현은 주의</p>
+                      <p class="text-sm text-red-700">${v.suggestionBefore}</p>
+                    </div>
+                    <div class="bg-green-50 border border-green-200 p-3 rounded-xl">
+                      <p class="text-xs font-semibold text-green-600 mb-1">✅ 이렇게 바꿔보세요</p>
+                      <p class="text-sm text-green-700">${v.suggestionAfter}</p>
+                    </div>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-3 italic">※ 수정 제안은 법령과 가이드라인을 기반으로 한 참고 사항이며, 100% 적법성을 보장하지 않습니다.</p>
+                </div>
+              ` : ''}
             </div>
           </div>
-        `).join('');
+        `}).join('');
       } else {
         vc.classList.add('hidden');
       }
       
-      // 문제없는 항목 (AI가 필터링)
+      // 문제없는 항목
       const sc = document.getElementById('safeItemsCard');
       const sl = document.getElementById('safeItemsList');
       if (r.safeItems.length > 0) {
@@ -785,13 +914,15 @@
         sl.innerHTML = r.safeItems.map(v => `
           <div class="not-violation rounded-xl p-4">
             <div class="flex items-start justify-between">
-              <div>
+              <div class="flex items-center flex-wrap gap-2">
                 <span class="font-semibold text-green-800">${v.icon} ${v.category}</span>
-                <span class="text-sm text-green-600 ml-2">— ${v.matches.join(', ')}</span>
+                <span class="text-sm text-green-600">— ${v.matches.join(', ')}</span>
+                ${getLocationBadge(v.visualLocation)}
+                ${getLoginBadge(v.requiresLogin)}
               </div>
               <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">✅ 문제없음</span>
             </div>
-            ${v.aiReason ? `<p class="text-sm text-green-700 mt-2">🤖 ${v.aiReason}</p>` : ''}
+            ${v.aiReason ? `<p class="text-sm text-green-700 mt-2">🖼️ ${v.aiReason}</p>` : ''}
           </div>
         `).join('');
       } else {

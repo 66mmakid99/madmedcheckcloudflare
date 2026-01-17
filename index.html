@@ -508,17 +508,17 @@
         
         if (data.fallback || data.error) {
           console.log('AI 분석 fallback:', data.error);
-          return { analysis: null, hasScreenshot: false, screenshot: null };
+          return { analysis: null, hasScreenshot: false, screenshotUrl: null };
         }
         
         return { 
           analysis: data.analysis, 
           hasScreenshot: data.hasScreenshot,
-          screenshot: data.screenshot 
+          screenshotUrl: data.screenshotUrl 
         };
       } catch (error) {
         console.error('AI 분석 오류:', error);
-        return { analysis: null, hasScreenshot: false, screenshot: null };
+        return { analysis: null, hasScreenshot: false, screenshotUrl: null };
       }
     }
 
@@ -526,7 +526,7 @@
     // 최종 결과 계산
     // ============================================
     function calculateFinalResult(text, suspected, aiResult) {
-      const { analysis: aiAnalysis, hasScreenshot, screenshot } = aiResult || {};
+      const { analysis: aiAnalysis, hasScreenshot, screenshotUrl } = aiResult || {};
       
       const result = {
         score: 100,
@@ -536,7 +536,7 @@
         scoreDeductions: [],
         aiAnalyzed: !!aiAnalysis,
         hasScreenshot: hasScreenshot,
-        screenshot: screenshot,
+        screenshotUrl: screenshotUrl,
         aiSummary: aiAnalysis?.summary || '',
         overallAssessment: aiAnalysis?.overallAssessment || ''
       };
@@ -877,12 +877,12 @@
           
           // 스크린샷 + 마킹 HTML
           let screenshotHtml = '';
-          if (r.screenshot && v.boundingBox) {
+          if (r.screenshotUrl && v.boundingBox) {
             screenshotHtml = `
               <div class="mb-5">
                 <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치 (스크린샷)</p>
                 <div class="screenshot-container">
-                  <img src="data:image/jpeg;base64,${r.screenshot}" alt="페이지 스크린샷" />
+                  <img src="${r.screenshotUrl}" alt="페이지 스크린샷" crossorigin="anonymous" />
                   <div class="marker-box" style="
                     left: ${v.boundingBox.x}%;
                     top: ${v.boundingBox.y}%;
@@ -894,13 +894,13 @@
                 </div>
               </div>
             `;
-          } else if (r.screenshot) {
+          } else if (r.screenshotUrl) {
             // 스크린샷은 있지만 좌표가 없는 경우
             screenshotHtml = `
               <div class="mb-5">
                 <p class="text-sm font-semibold text-gray-700 mb-2">📍 페이지 스크린샷</p>
                 <div class="screenshot-container">
-                  <img src="data:image/jpeg;base64,${r.screenshot}" alt="페이지 스크린샷" />
+                  <img src="${r.screenshotUrl}" alt="페이지 스크린샷" crossorigin="anonymous" />
                 </div>
                 ${v.contexts && v.contexts.length > 0 ? `
                   <div class="context-box mt-2">${highlightContext(v.contexts[0].context, v.matches)}</div>
@@ -1004,11 +1004,11 @@
         sc.classList.remove('hidden');
         sl.innerHTML = r.safeItems.map(v => {
           let screenshotHtml = '';
-          if (r.screenshot && v.boundingBox) {
+          if (r.screenshotUrl && v.boundingBox) {
             screenshotHtml = `
               <div class="mt-3">
                 <div class="screenshot-container" style="max-height: 200px; overflow: hidden;">
-                  <img src="data:image/jpeg;base64,${r.screenshot}" alt="페이지 스크린샷" />
+                  <img src="${r.screenshotUrl}" alt="페이지 스크린샷" crossorigin="anonymous" />
                   <div class="marker-box" style="
                     left: ${v.boundingBox.x}%;
                     top: ${v.boundingBox.y}%;

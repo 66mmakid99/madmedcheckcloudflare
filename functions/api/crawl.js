@@ -9,6 +9,7 @@
 
 export async function onRequest(context) {
   const { request } = context;
+  const startTime = Date.now();
   
   // CORS 헤더
   const corsHeaders = {
@@ -78,6 +79,12 @@ export async function onRequest(context) {
     // 메타 정보 추출
     const title = extractTitle(html);
     const description = extractMetaDescription(html);
+    
+    // 상세 분석 정보 수집
+    const analysisStats = analyzePageStructure(html);
+    
+    const endTime = Date.now();
+    const crawlDuration = ((endTime - startTime) / 1000).toFixed(2);
 
     return new Response(
       JSON.stringify({
@@ -87,6 +94,10 @@ export async function onRequest(context) {
         description: description,
         text: text,
         textLength: text.length,
+        stats: {
+          crawlDuration: parseFloat(crawlDuration),
+          ...analysisStats
+        },
         crawledAt: new Date().toISOString()
       }),
       { 
@@ -102,6 +113,66 @@ export async function onRequest(context) {
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+}
+
+/**
+ * 페이지 구조 분석
+ */
+function analyzePageStructure(html) {
+  // 링크 수 (내부/외부)
+  const allLinks = html.match(/<a[^>]+href=/gi) || [];
+  const internalLinks = html.match(/<a[^>]+href=["'](?!http|\/\/)[^"']*["']/gi) || [];
+  const externalLinks = allLinks.length - internalLinks.length;
+  
+  // 이미지 수
+  const images = html.match(/<img[^>]+/gi) || [];
+  
+  // 폼 수
+  const forms = html.match(/<form[^>]*/gi) || [];
+  
+  // 주요 섹션 수
+  const sections = (html.match(/<section[^>]*/gi) || []).length +
+                   (html.match(/<article[^>]*/gi) || []).length +
+                   (html.match(/<div[^>]*class="[^"]*(?:section|content|main|wrapper)[^"]*"/gi) || []).length;
+  
+  // 네비게이션 메뉴 수
+  const navElements = (html.match(/<nav[^>]*/gi) || []).length +
+                      (html.match(/<ul[^>]*class="[^"]*(?:menu|nav|gnb|lnb)[^"]*"/gi) || []).length;
+  
+  // 버튼 수
+  const buttons = (html.match(/<button[^>]*/gi) || []).length +
+                  (html.match(/<input[^>]*type=["'](?:submit|button)["']/gi) || []).length;
+  
+  // 스크립트/스타일 파일 수
+  const scripts = (html.match(/<script[^>]+src=/gi) || []).length;
+  const styles = (html.match(/<link[^>]+stylesheet/gi) || []).length;
+  
+  // 메타 태그 수
+  const metaTags = (html.match(/<meta[^>]+/gi) || []).length;
+  
+  // 테이블 수 (가격표 등)
+  const tables = (html.match(/<table[^>]*/gi) || []).length;
+  
+  // 동영상/임베드 수
+  const videos = (html.match(/<video[^>]*/gi) || []).length +
+                 (html.match(/<iframe[^>]*/gi) || []).length;
+
+  return {
+    totalLinks: allLinks.length,
+    internalLinks: internalLinks.length,
+    externalLinks: externalLinks,
+    images: images.length,
+    forms: forms.length,
+    sections: Math.max(sections, 1),
+    navElements: navElements,
+    buttons: buttons,
+    scripts: scripts,
+    styles: styles,
+    metaTags: metaTags,
+    tables: tables,
+    videos: videos,
+    totalElements: allLinks.length + images.length + buttons + forms.length + tables + videos
+  };
 }
 
 /**

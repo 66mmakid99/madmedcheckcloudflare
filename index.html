@@ -93,22 +93,44 @@
           <div class="flex items-center space-x-3">
             <div class="spinner"></div>
             <div>
-              <p class="font-medium text-blue-800">페이지 분석 중...</p>
-              <p id="crawlStatusText" class="text-sm text-blue-600"></p>
+              <p class="font-medium text-blue-800">페이지 구조 분석 중...</p>
+              <p id="crawlStatusText" class="text-sm text-blue-600">DOM 트리 탐색 및 콘텐츠 추출 중</p>
             </div>
           </div>
         </div>
         <div id="crawlPreview" class="hidden mt-4 p-4 rounded-xl bg-gray-50 border border-gray-200">
-          <div class="flex items-center justify-between mb-2">
-            <p class="font-medium text-gray-700">📄 추출된 콘텐츠</p>
-            <span id="crawlTextLength" class="text-xs text-gray-500"></span>
+          <div class="flex items-center justify-between mb-3">
+            <p class="font-medium text-gray-700">✅ 페이지 분석 완료</p>
+            <span id="crawlDuration" class="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded"></span>
           </div>
-          <p id="crawlTitle" class="text-sm font-semibold text-gray-800 mb-2"></p>
-          <div id="crawlTextPreview" class="text-sm text-gray-600 max-h-32 overflow-y-auto bg-white p-3 rounded-lg border"></div>
+          <p id="crawlTitle" class="text-sm font-semibold text-gray-800 mb-3"></p>
+          
+          <!-- 분석 스펙 표시 -->
+          <div id="crawlStats" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+            <div class="bg-white rounded-lg p-2 border text-center">
+              <p class="text-lg font-bold text-primary" id="statSections">-</p>
+              <p class="text-xs text-gray-500">섹션</p>
+            </div>
+            <div class="bg-white rounded-lg p-2 border text-center">
+              <p class="text-lg font-bold text-primary" id="statLinks">-</p>
+              <p class="text-xs text-gray-500">링크</p>
+            </div>
+            <div class="bg-white rounded-lg p-2 border text-center">
+              <p class="text-lg font-bold text-primary" id="statImages">-</p>
+              <p class="text-xs text-gray-500">이미지</p>
+            </div>
+            <div class="bg-white rounded-lg p-2 border text-center">
+              <p class="text-lg font-bold text-primary" id="statElements">-</p>
+              <p class="text-xs text-gray-500">요소</p>
+            </div>
+          </div>
+          
+          <p id="crawlSummary" class="text-xs text-gray-500 mb-2"></p>
+          <div id="crawlTextPreview" class="text-sm text-gray-600 max-h-24 overflow-y-auto bg-white p-3 rounded-lg border"></div>
         </div>
       </div>
 
-      <button id="analyzeBtn" onclick="analyze()" class="w-full mt-6 px-8 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]">🔍 AI Vision 검사하기</button>
+      <button id="analyzeBtn" onclick="analyze()" class="w-full mt-6 px-8 py-4 bg-primary text-white rounded-xl font-bold text-lg hover:bg-primary-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]">check!!</button>
       
       <div id="analysisProgress" class="hidden mt-4">
         <div class="bg-gray-100 rounded-xl p-4">
@@ -596,9 +618,28 @@
         previewEl.classList.remove('hidden');
         
         document.getElementById('crawlTitle').textContent = data.title || '(제목 없음)';
-        document.getElementById('crawlTextLength').textContent = `${data.textLength.toLocaleString()}자 추출됨`;
+        
+        // 분석 스펙 표시
+        const stats = data.stats || {};
+        document.getElementById('crawlDuration').textContent = `${stats.crawlDuration || 0}초 완료`;
+        document.getElementById('statSections').textContent = stats.sections || 0;
+        document.getElementById('statLinks').textContent = stats.totalLinks || 0;
+        document.getElementById('statImages').textContent = stats.images || 0;
+        document.getElementById('statElements').textContent = stats.totalElements || 0;
+        
+        // 요약 메시지
+        const summaryParts = [];
+        summaryParts.push(`${data.textLength.toLocaleString()}자 텍스트`);
+        if (stats.navElements) summaryParts.push(`${stats.navElements}개 메뉴`);
+        if (stats.forms) summaryParts.push(`${stats.forms}개 폼`);
+        if (stats.tables) summaryParts.push(`${stats.tables}개 테이블`);
+        if (stats.videos) summaryParts.push(`${stats.videos}개 동영상`);
+        
+        document.getElementById('crawlSummary').textContent = 
+          `📊 ${stats.sections || 1}개 섹션, ${stats.totalLinks || 0}개 링크, ${stats.images || 0}개 이미지 구조 분석 완료 | ${summaryParts.join(' · ')}`;
+        
         document.getElementById('crawlTextPreview').textContent = 
-          data.text.length > 500 ? data.text.substring(0, 500) + '...' : data.text;
+          data.text.length > 300 ? data.text.substring(0, 300) + '...' : data.text;
 
         return data.text;
 
@@ -705,7 +746,7 @@
         }
         
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner mr-2"></span> 페이지 가져오는 중...';
+        btn.innerHTML = '<span class="spinner mr-2"></span> 구조 분석 중...';
         
         textToAnalyze = await crawlUrl(urlToAnalyze);
         if (!textToAnalyze) {
@@ -751,7 +792,7 @@
       
       progressEl.classList.add('hidden');
       btn.disabled = false;
-      btn.innerHTML = '🔍 AI Vision 검사하기';
+      btn.innerHTML = 'check!!';
       
       renderResult(result);
     }

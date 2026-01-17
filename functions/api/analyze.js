@@ -250,12 +250,18 @@ async function checkLoginRequirements(baseUrl, text, suspectedViolations) {
 }
 
 function buildVisionPrompt(url, suspectedViolations, text, hasImage, loginCheckResults) {
-  const violationsList = suspectedViolations.map((v, i) => {
-    return `${i + 1}. 카테고리: ${v.category}
+  // 키워드 발견 여부에 따라 다른 프롬프트
+  const hasKeywords = suspectedViolations && suspectedViolations.length > 0;
+  
+  let violationsList = '';
+  if (hasKeywords) {
+    violationsList = suspectedViolations.map((v, i) => {
+      return `${i + 1}. 카테고리: ${v.category}
    발견된 표현: ${v.matches.join(', ')}
    발견된 문맥: "${v.context}"
    위반 기준: ${v.criteria}`;
-  }).join('\n\n');
+    }).join('\n\n');
+  }
 
   // 로그인 체크 결과 정리
   let loginCheckInfo = '';
@@ -285,17 +291,34 @@ ${checkedLinks.join('\n')}
   const imageInstruction = hasImage 
     ? `## 스크린샷 분석
 위 이미지는 해당 웹페이지의 스크린샷입니다. 
-이미지를 보고 각 의심 표현이 어디에 위치하는지 확인하세요:
+${hasKeywords ? `이미지를 보고 각 의심 표현이 어디에 위치하는지 확인하세요:` : `텍스트 추출이 되지 않은 페이지입니다. 스크린샷을 직접 분석하여 의료광고법 위반 가능성이 있는 표현을 찾아주세요:`}
 - 상단/사이드 네비게이션 메뉴에 있는 텍스트인가?
 - 본문 콘텐츠 영역에 있는 광고 문구인가?
 - 시술 결과 사진과 함께 있는가?
 - 팝업/배너 광고인가?
 - "로그인", "회원전용", "로그인 후 확인" 등의 표시가 있는가?
+- "최고", "1위", "100%", "완치" 등 과장 표현이 있는가?
+- 전후 사진, 시술 후기가 공개되어 있는가?
 
 시각적 맥락을 기반으로 판단하세요.`
     : `## 텍스트 분석
 스크린샷을 가져오지 못했습니다. 텍스트만으로 분석하되, 
 메뉴명일 가능성이 있는 경우 "확인 필요"로 표시하세요.`;
+
+  // 키워드가 없을 때는 전체 페이지 분석 모드
+  const analysisMode = hasKeywords 
+    ? `## 1차 키워드 검사에서 발견된 의심 항목
+${violationsList}`
+    : `## 1차 키워드 검사 결과
+텍스트 추출이 되지 않았거나 키워드가 발견되지 않았습니다.
+**스크린샷을 직접 분석하여** 의료광고법 위반 가능성이 있는 표현을 찾아주세요.
+
+주요 체크 항목:
+1. 과장 표현: "최고", "No.1", "1위", "최초", "유일" 등
+2. 효과 보장: "100%", "완치", "보장", "확실" 등  
+3. 치료 경험담: "전후 사진", "시술 후기", "B/A" 등
+4. 환자 유인: "할인", "이벤트", "무료", "캐시백" 등
+5. 비교 광고: "타 병원", "vs" 등`;
 
   return `당신은 의료광고 법규 전문가입니다. 보건복지부 '건강한 의료광고 가이드라인 2판(2024.12)'을 기준으로 분석합니다.
 
@@ -307,11 +330,10 @@ ${loginCheckInfo}
 
 ## 추출된 텍스트 (참고용)
 """
-${text ? text.substring(0, 2000) : '(텍스트 없음)'}
+${text ? text.substring(0, 2000) : '(텍스트 추출 불가 - JavaScript 렌더링 페이지일 수 있음)'}
 """
 
-## 1차 키워드 검사에서 발견된 의심 항목
-${violationsList}
+${analysisMode}
 
 ## 판단 기준
 

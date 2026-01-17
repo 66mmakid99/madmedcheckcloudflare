@@ -668,8 +668,51 @@
       if (aiAnalysis && aiAnalysis.results) {
         aiAnalysis.results.forEach((aiResult, idx) => {
           const original = suspected[idx];
-          if (!original) return;
           
+          // AI가 직접 발견한 항목 (키워드 매칭 없이)
+          if (!original) {
+            if (aiResult.isViolation) {
+              // AI가 스크린샷에서 직접 발견한 위반
+              const violation = {
+                key: aiResult.category?.toLowerCase().replace(/\s/g, '') || 'aiDetected',
+                category: aiResult.category || 'AI 발견',
+                icon: '🖼️',
+                matches: aiResult.matches || [aiResult.category],
+                count: 1,
+                contexts: [],
+                severity: aiResult.confidence === 'high' ? 'high' : 'medium',
+                criteria: aiResult.reason,
+                legalBasis: '의료법 제56조',
+                legalText: '의료광고는 객관적으로 인정되지 아니하거나 근거가 없는 내용을 포함하여서는 아니 된다',
+                penaltyInfo: { level: '과태료 300만원 이하', detail: '위반 정도에 따라 상이' },
+                aiReason: aiResult.reason,
+                aiSuggestion: aiResult.suggestion,
+                aiConfidence: aiResult.confidence,
+                visualLocation: aiResult.visualLocation,
+                requiresLogin: aiResult.requiresLogin,
+                boundingBox: aiResult.boundingBox,
+                deduction: 10
+              };
+              result.violations.push(violation);
+              result.score -= 10;
+              result.scoreDeductions.push({ category: aiResult.category || 'AI 발견', count: 1, deduction: 10 });
+            } else if (aiResult.category) {
+              // AI가 확인했지만 문제없음
+              result.safeItems.push({
+                key: 'aiChecked',
+                category: aiResult.category || 'AI 확인',
+                icon: '✅',
+                matches: aiResult.matches || [],
+                aiReason: aiResult.reason,
+                visualLocation: aiResult.visualLocation,
+                requiresLogin: aiResult.requiresLogin,
+                boundingBox: aiResult.boundingBox
+              });
+            }
+            return;
+          }
+          
+          // 기존 로직: 키워드 매칭된 항목 처리
           if (aiResult.isViolation) {
             const deduction = Math.min(original.deductionPerMatch * original.count, 45);
             result.violations.push({
@@ -703,11 +746,14 @@
         });
       }
       
-      for (const [k, cfg] of Object.entries(requiredDisclosures)) {
-        if (!text.match(cfg.pattern)) {
-          result.missingDisclosures.push({ ...cfg });
-          result.score -= cfg.deduction;
-          result.scoreDeductions.push({ category: cfg.description + ' 누락', count: 1, deduction: cfg.deduction });
+      // 텍스트가 있을 때만 필수 표기사항 체크
+      if (text && text.length > 50) {
+        for (const [k, cfg] of Object.entries(requiredDisclosures)) {
+          if (!text.match(cfg.pattern)) {
+            result.missingDisclosures.push({ ...cfg });
+            result.score -= cfg.deduction;
+            result.scoreDeductions.push({ category: cfg.description + ' 누락', count: 1, deduction: cfg.deduction });
+          }
         }
       }
       
@@ -720,8 +766,14 @@
       else result.grade = { grade: 'F', label: '점검필요', color: '#ef4444', emoji: '🚨' };
       
       const critical = result.violations.filter(v => v.severity === 'critical').length;
-      if (result.violations.length === 0) {
-        result.summary = '검사 결과 특별히 문제될 표현이 발견되지 않았어요! 🎉';
+      if (result.violations.length === 0 && result.safeItems.length === 0) {
+        if (result.aiAnalyzed) {
+          result.summary = 'AI Vision 분석 결과 특별히 문제될 표현이 발견되지 않았어요! 🎉';
+        } else {
+          result.summary = '검사 결과 특별히 문제될 표현이 발견되지 않았어요! 🎉';
+        }
+      } else if (result.violations.length === 0) {
+        result.summary = '검사한 표현들은 모두 문제없는 것으로 판단됩니다! 🎉';
       } else if (critical > 0) {
         result.summary = `확인이 필요한 표현이 ${result.violations.length}가지 발견됐어요`;
       } else {
@@ -747,7 +799,18 @@
         const data = await response.json();
 
         if (!response.ok || data.error) {
-          throw new Error(data.error || '크롤링 실패');
+          // 크롤링 실패해도 AI Vision으로 분석 진행
+          statusEl.classList.add('hidden');
+          previewEl.classList.remove('hidden');
+          document.getElementById('crawlTitle').textContent = '(페이지 정보)';
+          document.getElementById('crawlDuration').textContent = '텍스트 추출 실패';
+          document.getElementById('statSections').textContent = '-';
+          document.getElementById('statLinks').textContent = '-';
+          document.getElementById('statImages').textContent = '-';
+          document.getElementById('statElements').textContent = '-';
+          document.getElementById('crawlSummary').textContent = '⚠️ 텍스트 추출 실패 - AI Vision으로 스크린샷 기반 분석을 진행합니다';
+          document.getElementById('crawlTextPreview').textContent = '이 페이지는 JavaScript로 렌더링되어 텍스트 추출이 어렵습니다. 스크린샷 기반으로 분석합니다.';
+          return ''; // 빈 텍스트 반환, null 대신
         }
 
         statusEl.classList.add('hidden');
@@ -885,10 +948,9 @@
         btn.innerHTML = '<span class="spinner mr-2"></span> 구조 분석 중...';
         
         textToAnalyze = await crawlUrl(urlToAnalyze);
+        // 크롤링 실패해도 URL이 있으면 AI Vision 분석 진행
         if (!textToAnalyze) {
-          btn.disabled = false;
-          btn.innerHTML = '🔍 AI Vision 검사하기';
-          return;
+          textToAnalyze = ''; // 빈 텍스트로 설정
         }
         analyzedSourceUrl = urlToAnalyze;
       }
@@ -905,9 +967,10 @@
       updateProgress(`${suspected.length}개 의심 항목 발견`, 40);
       await new Promise(r => setTimeout(r, 300));
       
-      let aiResult = { analysis: null, hasScreenshot: false };
+      let aiResult = { analysis: null, hasScreenshot: false, screenshotUrl: null };
       
-      if (suspected.length > 0 && urlToAnalyze) {
+      // URL이 있으면 항상 AI Vision 분석 진행 (텍스트가 없어도)
+      if (urlToAnalyze) {
         // 2차: AI Vision 분석 (URL이 있을 때만)
         updateProgress('🖼️ AI가 페이지 화면을 분석하고 있습니다...', 60);
         aiResult = await secondPassAnalysis(urlToAnalyze, textToAnalyze, suspected);

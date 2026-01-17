@@ -26,7 +26,8 @@
     .grade-circle:hover { transform: scale(1.05); }
     .violation-card { transition: all 0.2s ease; }
     .violation-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
-    .highlight-match { background: linear-gradient(120deg, #fef08a 0%, #fef08a 100%); padding: 1px 4px; border-radius: 3px; }
+    .highlight-match { background: linear-gradient(120deg, #fef08a 0%, #fef08a 100%); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .highlight-in-context { background: #fee2e2; padding: 1px 3px; border-radius: 2px; color: #dc2626; font-weight: 600; }
     .animate-fade-in { animation: fadeIn 0.5s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .pulse { animation: pulse 2s infinite; }
@@ -35,6 +36,12 @@
     textarea:focus, input:focus { outline: none; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2); }
     .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #2563eb; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .detail-toggle { cursor: pointer; user-select: none; }
+    .detail-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+    .detail-content.open { max-height: 1000px; }
+    .context-box { font-size: 0.875rem; line-height: 1.6; background: #f9fafb; border-left: 3px solid #e5e7eb; padding: 12px 16px; border-radius: 0 8px 8px 0; }
+    .fix-example { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #a7f3d0; }
+    .problem-example { background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); border: 1px solid #fca5a5; }
   </style>
 </head>
 <body class="bg-pattern min-h-screen">
@@ -93,7 +100,6 @@
             <p class="text-xs text-gray-400 mt-1">* 일부 사이트는 보안 정책으로 크롤링이 제한될 수 있습니다</p>
           </div>
         </div>
-        <!-- 크롤링 상태 표시 -->
         <div id="crawlStatus" class="hidden mt-4 p-4 rounded-xl bg-blue-50 border border-blue-200">
           <div class="flex items-center space-x-3">
             <div class="spinner"></div>
@@ -103,7 +109,6 @@
             </div>
           </div>
         </div>
-        <!-- 크롤링 결과 미리보기 -->
         <div id="crawlPreview" class="hidden mt-4 p-4 rounded-xl bg-gray-50 border border-gray-200">
           <div class="flex items-center justify-between mb-2">
             <p class="font-medium text-gray-700">📄 추출된 콘텐츠</p>
@@ -119,7 +124,6 @@
 
     <!-- 결과 영역 -->
     <div id="resultSection" class="hidden space-y-6 animate-fade-in">
-      <!-- 분석 소스 표시 -->
       <div id="sourceInfo" class="hidden bg-blue-50 border border-blue-200 rounded-xl p-4">
         <p class="text-sm text-blue-800">
           <span class="font-semibold">🔗 분석 대상:</span> 
@@ -127,6 +131,7 @@
         </p>
       </div>
 
+      <!-- 점수 카드 -->
       <div class="bg-white rounded-2xl shadow-lg border p-6 md:p-8">
         <div class="flex flex-col md:flex-row items-center justify-between gap-6">
           <div class="text-center md:text-left flex-1">
@@ -139,26 +144,40 @@
             <p id="gradeLabel" class="mt-4 font-bold text-xl"></p>
           </div>
         </div>
+        
+        <!-- 점수 상세 내역 -->
+        <div id="scoreBreakdown" class="mt-6 pt-6 border-t border-gray-100">
+          <p class="text-sm font-semibold text-gray-700 mb-3">📊 점수 산정 내역</p>
+          <div id="scoreDetails" class="space-y-2"></div>
+        </div>
       </div>
 
+      <!-- 위반 항목 -->
       <div id="violationsCard" class="bg-white rounded-2xl shadow-lg border p-6 md:p-8 hidden">
         <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center">
           <span class="text-2xl mr-2">⚠️</span> 위반 항목
           <span id="violationCount" class="ml-3 text-sm font-normal text-gray-500 bg-gray-100 px-3 py-1 rounded-full"></span>
         </h3>
-        <div id="violationsList" class="space-y-4"></div>
+        <div id="violationsList" class="space-y-6"></div>
       </div>
 
+      <!-- 누락된 필수 표기사항 -->
       <div id="disclosuresCard" class="bg-white rounded-2xl shadow-lg border p-6 md:p-8 hidden">
         <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center"><span class="text-2xl mr-2">📋</span> 누락된 필수 표기사항</h3>
         <ul id="disclosuresList" class="space-y-3"></ul>
+        <div class="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+          <p class="text-sm font-semibold text-blue-800 mb-2">✅ 올바른 표기 예시</p>
+          <p class="text-sm text-blue-700">"본 시술은 개인에 따라 부작용이 발생할 수 있으며, 사전 상담이 필요합니다. | ○○의원 | 피부과전문의 홍길동"</p>
+        </div>
       </div>
 
+      <!-- 개선 권고사항 -->
       <div id="recommendationsCard" class="bg-white rounded-2xl shadow-lg border p-6 md:p-8 hidden">
         <h3 class="text-xl font-bold text-gray-900 mb-6 flex items-center"><span class="text-2xl mr-2">💡</span> 개선 권고사항</h3>
-        <ul id="recommendationsList" class="space-y-3"></ul>
+        <ul id="recommendationsList" class="space-y-4"></ul>
       </div>
 
+      <!-- CTA -->
       <div class="bg-gradient-to-br from-primary to-blue-700 rounded-2xl p-8 text-center text-white shadow-lg">
         <h3 class="text-2xl font-bold mb-3">더 정밀한 마케팅 진단이 필요하신가요?</h3>
         <p class="text-blue-100 mb-6 text-lg">AEO 분석, 바이럴 모니터링, 경쟁병원 분석까지 한번에!</p>
@@ -180,52 +199,224 @@
 
   <script>
     // ============================================
-    // 검사 엔진 (가이드라인 2판 기반)
+    // 검사 엔진 (가이드라인 2판 기반) - 상세 정보 추가
     // ============================================
     const patterns = {
-      absoluteClaims: { patterns: [/최고의?/g,/최상의?/g,/최초의?/g,/유일한?/g,/독보적/g,/세계\s*(최고|최초|유일)/g,/국내\s*(최고|최초|유일)/g,/아시아\s*(최고|최초)/g,/업계\s*(최초|유일|최고)/g,/No\.?\s*1/gi,/넘버원/g,/1위/g,/1등/g,/선두/g,/리딩/g,/leading/gi,/top\s*\d*/gi,/최다\s*(경험|시술|수술|케이스)/g,/압도적/g,/독점/g,/유일무이/g], severity:'high', category:'과장광고', subcategory:'최상급/절대적 표현', legalBasis:'의료법 제56조 제2항 제1호', penalty:'과태료 300만원 이하', guidance:'객관적으로 검증 가능한 근거 없이 사용 불가' },
-      guaranteeClaims: { patterns: [/100\s*%/g,/백프로/g,/백퍼센트/g,/완치/g,/완벽한?\s*(치료|효과|결과)/g,/확실한?\s*(효과|치료|결과)/g,/반드시/g,/무조건/g,/보장/g,/guaranteed/gi,/약속/g,/실패\s*(없|율\s*0|zero)/gi,/부작용\s*(없|율\s*0|zero)/gi,/재발\s*(없|율\s*0)/g,/평생\s*보장/g], severity:'critical', category:'효과보장 광고', subcategory:'치료 효과 보장', legalBasis:'의료법 제56조 제2항 제1호', penalty:'과태료 300만원 이하, 형사처벌 가능', guidance:'"개인차가 있을 수 있습니다" 문구 추가 필요' },
-      patientTestimonial: { patterns: [/(시술|치료|수술)\s*후기/g,/리얼\s*후기/g,/솔직\s*후기/g,/체험\s*후기/g,/이용\s*후기/g,/방문\s*후기/g,/(전후|비포\s*애프터|before\s*(&|and)?\s*after)/gi,/시술\s*전후/g,/수술\s*전후/g,/변화\s*사진/g,/환자\s*인터뷰/g,/고객\s*인터뷰/g,/실제\s*(환자|사례|케이스)/g,/생생한?\s*(후기|리뷰)/g], severity:'high', category:'치료경험담 광고', subcategory:'전후 비교/후기', legalBasis:'의료법 제56조 제2항 제2호', penalty:'과태료 300만원 이하', guidance:'불특정 다수가 열람 가능한 형태로 게시 시 위반' },
-      patientSolicitation: { patterns: [/현금\s*(지급|환급|캐시백)/g,/캐시백/g,/리베이트/g,/소개비/g,/추천\s*보상/g,/포인트\s*적립/g,/무료\s*(시술|상담|진료)/g,/공짜/g,/0원/g,/전액\s*무료/g,/(50|60|70|80|90)\s*%\s*(이상)?\s*할인/g,/사은품/g,/경품/g,/선물\s*증정/g,/무료\s*증정/g,/친구\s*추천/g,/리워드/g], severity:'critical', category:'환자 유인행위', subcategory:'금품 제공/과도한 할인', legalBasis:'의료법 제27조 제3항', penalty:'3년 이하 징역 또는 3천만원 이하 벌금', guidance:'형사처벌 대상 - 즉시 삭제 필요' },
-      specialtyClaim: { patterns: [/전문\s*병원/g,/전문\s*클리닉/g,/특화\s*(병원|클리닉|센터)/g], severity:'high', category:'전문병원 명칭 오용', subcategory:'미지정 전문병원 표현', legalBasis:'의료법 제3조의5 제1항', penalty:'과태료 300만원 이하', guidance:'보건복지부 지정 전문병원만 사용 가능' },
-      comparisonAd: { patterns: [/타\s*병원/g,/다른\s*(병원|의원|클리닉)/g,/경쟁\s*(병원|의원)/g,/vs/gi,/versus/gi,/(우리|저희)\s*병원(만|이)/g], severity:'medium', category:'비교광고', subcategory:'타 의료기관 비교', legalBasis:'의료법 제56조 제2항 제1호', penalty:'과태료 300만원 이하', guidance:'비교 대상 명시 및 객관적 근거 필요' },
-      certificationMisuse: { patterns: [/(수상|표창|감사장|공로상)/g,/유명인\s*추천/g,/셀럽\s*추천/g,/연예인\s*(시술|추천|단골)/g,/스타\s*병원/g,/인플루언서/g,/방송\s*출연/g,/TV\s*출연/g], severity:'medium', category:'인증·보증 오용', subcategory:'상장/유명인 이용', legalBasis:'의료법 제56조 제2항 제14호', penalty:'과태료 300만원 이하', guidance:'공공기관 인증만 광고 가능' },
-      unclearDiscount: { patterns: [/최대\s*\d+\s*%\s*할인/g,/파격\s*할인/g,/특가/g,/빅세일/g,/땡처리/g,/한정\s*할인/g,/오늘만/g,/마감\s*임박/g], severity:'medium', category:'불명확한 할인 광고', subcategory:'할인 조건 불명확', legalBasis:'의료법 제56조 제2항 제13호', penalty:'과태료 300만원 이하', guidance:'할인 대상·기간·범위·할인 전 가격 명확히 표시' },
-      unapprovedTech: { patterns: [/신기술/g,/혁신\s*기술/g,/최신\s*기술/g,/새로운\s*치료법/g,/특허\s*(시술|기술)/g,/신개념/g,/차세대/g], severity:'high', category:'미평가 신의료기술 광고', subcategory:'평가받지 않은 기술', legalBasis:'의료법 제56조 제2항 제3호', penalty:'과태료 300만원 이하', guidance:'신의료기술평가위원회 평가 필요' }
+      absoluteClaims: { 
+        patterns: [/최고의?/g,/최상의?/g,/최초의?/g,/유일한?/g,/독보적/g,/세계\s*(최고|최초|유일)/g,/국내\s*(최고|최초|유일)/g,/아시아\s*(최고|최초)/g,/업계\s*(최초|유일|최고)/g,/No\.?\s*1/gi,/넘버원/g,/1위/g,/1등/g,/선두/g,/리딩/g,/leading/gi,/top\s*\d*/gi,/최다\s*(경험|시술|수술|케이스)/g,/압도적/g,/독점/g,/유일무이/g], 
+        severity:'high', 
+        category:'과장광고', 
+        subcategory:'최상급/절대적 표현', 
+        legalBasis:'의료법 제56조 제2항 제1호', 
+        penalty:'과태료 300만원 이하',
+        penaltyDetail: '1차 위반 100만원, 2차 200만원, 3차 300만원',
+        guidance:'객관적으로 검증 가능한 근거 없이 사용 불가',
+        description: '의료광고에서 객관적으로 인정되지 않거나 근거가 없는 내용을 광고하는 것은 금지됩니다. "최고", "최초", "유일" 등의 표현은 객관적 검증이 불가능하므로 사용할 수 없습니다.',
+        caseExample: '2023년 A피부과: "강남 최고 피부과" 표현으로 과태료 200만원 부과',
+        fixBefore: '강남 No.1 피부과, 최고의 시술',
+        fixAfter: '강남역 3번출구 피부과, 10년 경력 전문의 시술',
+        deductionPerMatch: 12
+      },
+      guaranteeClaims: { 
+        patterns: [/100\s*%/g,/백프로/g,/백퍼센트/g,/완치/g,/완벽한?\s*(치료|효과|결과)/g,/확실한?\s*(효과|치료|결과)/g,/반드시/g,/무조건/g,/보장/g,/guaranteed/gi,/약속/g,/실패\s*(없|율\s*0|zero)/gi,/부작용\s*(없|율\s*0|zero)/gi,/재발\s*(없|율\s*0)/g,/평생\s*보장/g], 
+        severity:'critical', 
+        category:'효과보장 광고', 
+        subcategory:'치료 효과 보장', 
+        legalBasis:'의료법 제56조 제2항 제1호', 
+        penalty:'과태료 300만원 이하, 형사처벌 가능',
+        penaltyDetail: '허위·과대광고 시 2년 이하 징역 또는 2천만원 이하 벌금 가능',
+        guidance:'"개인차가 있을 수 있습니다" 문구 추가 필요',
+        description: '의료 시술의 효과는 환자 개인의 상태에 따라 다르므로, 100% 효과 보장이나 완치를 약속하는 것은 거짓 광고에 해당합니다.',
+        caseExample: '2022년 B성형외과: "100% 만족 보장" 광고로 업무정지 15일 + 과태료 300만원',
+        fixBefore: '100% 효과 보장, 완벽한 결과 약속',
+        fixAfter: '만족도 높은 시술 (개인차가 있을 수 있습니다)',
+        deductionPerMatch: 20
+      },
+      patientTestimonial: { 
+        patterns: [/(시술|치료|수술)\s*후기/g,/리얼\s*후기/g,/솔직\s*후기/g,/체험\s*후기/g,/이용\s*후기/g,/방문\s*후기/g,/(전후|비포\s*애프터|before\s*(&|and)?\s*after)/gi,/시술\s*전후/g,/수술\s*전후/g,/변화\s*사진/g,/환자\s*인터뷰/g,/고객\s*인터뷰/g,/실제\s*(환자|사례|케이스)/g,/생생한?\s*(후기|리뷰)/g], 
+        severity:'high', 
+        category:'치료경험담 광고', 
+        subcategory:'전후 비교/후기', 
+        legalBasis:'의료법 제56조 제2항 제2호', 
+        penalty:'과태료 300만원 이하',
+        penaltyDetail: '1차 위반 100만원, 2차 200만원, 3차 300만원',
+        guidance:'불특정 다수가 열람 가능한 형태로 게시 시 위반',
+        description: '환자의 치료 경험담을 광고에 사용하는 것은 금지됩니다. 전후 사진, 후기 등은 로그인한 회원만 볼 수 있는 영역에 게시해야 합니다.',
+        caseExample: '2023년 C의원: 블로그에 시술 전후 사진 게시로 과태료 150만원',
+        fixBefore: '시술 전후 사진 공개, 생생한 후기',
+        fixAfter: '상담 시 시술 결과 안내 (로그인 회원 전용 갤러리)',
+        deductionPerMatch: 12
+      },
+      patientSolicitation: { 
+        patterns: [/현금\s*(지급|환급|캐시백)/g,/캐시백/g,/리베이트/g,/소개비/g,/추천\s*보상/g,/포인트\s*적립/g,/무료\s*(시술|상담|진료)/g,/공짜/g,/0원/g,/전액\s*무료/g,/(50|60|70|80|90)\s*%\s*(이상)?\s*할인/g,/사은품/g,/경품/g,/선물\s*증정/g,/무료\s*증정/g,/친구\s*추천/g,/리워드/g], 
+        severity:'critical', 
+        category:'환자 유인행위', 
+        subcategory:'금품 제공/과도한 할인', 
+        legalBasis:'의료법 제27조 제3항', 
+        penalty:'3년 이하 징역 또는 3천만원 이하 벌금',
+        penaltyDetail: '형사처벌 대상 - 의료기관 개설 허가 취소 가능',
+        guidance:'형사처벌 대상 - 즉시 삭제 필요',
+        description: '금품, 경제적 이익을 제공하여 환자를 유인하는 것은 형사처벌 대상입니다. 과도한 할인(50% 이상), 캐시백, 소개비 등이 해당됩니다.',
+        caseExample: '2021년 D병원: 소개비 지급으로 벌금 2천만원 + 의사면허 자격정지 3개월',
+        fixBefore: '친구 추천하면 캐시백 5만원, 50% 할인',
+        fixAfter: '신규 방문 시 상담 무료 (비급여 항목에 한함)',
+        deductionPerMatch: 20
+      },
+      specialtyClaim: { 
+        patterns: [/전문\s*병원/g,/전문\s*클리닉/g,/특화\s*(병원|클리닉|센터)/g], 
+        severity:'high', 
+        category:'전문병원 명칭 오용', 
+        subcategory:'미지정 전문병원 표현', 
+        legalBasis:'의료법 제3조의5 제1항', 
+        penalty:'과태료 300만원 이하',
+        penaltyDetail: '보건복지부 지정 없이 "전문병원" 명칭 사용 시 처벌',
+        guidance:'보건복지부 지정 전문병원만 사용 가능',
+        description: '"전문병원"은 보건복지부가 지정한 의료기관만 사용할 수 있는 명칭입니다. 지정받지 않은 의료기관이 사용하면 위반입니다.',
+        caseExample: '2022년 E의원: 미지정 상태에서 "피부전문병원" 사용으로 과태료 200만원',
+        fixBefore: '피부 전문병원, 성형 전문 클리닉',
+        fixAfter: '피부과의원, 피부과 전문의 진료',
+        deductionPerMatch: 12
+      },
+      comparisonAd: { 
+        patterns: [/타\s*병원/g,/다른\s*(병원|의원|클리닉)/g,/경쟁\s*(병원|의원)/g,/vs/gi,/versus/gi,/(우리|저희)\s*병원(만|이)/g], 
+        severity:'medium', 
+        category:'비교광고', 
+        subcategory:'타 의료기관 비교', 
+        legalBasis:'의료법 제56조 제2항 제1호', 
+        penalty:'과태료 300만원 이하',
+        penaltyDetail: '비교 대상 및 근거 불명확 시 위반',
+        guidance:'비교 대상 명시 및 객관적 근거 필요',
+        description: '다른 의료기관과 비교하는 광고는 비교 대상과 객관적 근거를 명확히 제시해야 합니다. 불명확한 비교는 과장광고로 간주됩니다.',
+        caseExample: '2023년 F의원: "타 병원보다 저렴" 표현으로 시정명령',
+        fixBefore: '타 병원보다 뛰어난 기술력',
+        fixAfter: '20년 경력 전문의 직접 시술',
+        deductionPerMatch: 6
+      },
+      certificationMisuse: { 
+        patterns: [/(수상|표창|감사장|공로상)/g,/유명인\s*추천/g,/셀럽\s*추천/g,/연예인\s*(시술|추천|단골)/g,/스타\s*병원/g,/인플루언서/g,/방송\s*출연/g,/TV\s*출연/g], 
+        severity:'medium', 
+        category:'인증·보증 오용', 
+        subcategory:'상장/유명인 이용', 
+        legalBasis:'의료법 제56조 제2항 제14호', 
+        penalty:'과태료 300만원 이하',
+        penaltyDetail: '공인되지 않은 인증·보증 사용 시 위반',
+        guidance:'공공기관 인증만 광고 가능',
+        description: '공인되지 않은 인증, 상장, 유명인의 추천 등을 광고에 사용하는 것은 금지됩니다.',
+        caseExample: '2022년 G병원: "연예인 OOO 시술 병원" 광고로 과태료 200만원',
+        fixBefore: '연예인 단골 병원, 방송 출연 의료진',
+        fixAfter: '대한피부과학회 정회원',
+        deductionPerMatch: 6
+      },
+      unclearDiscount: { 
+        patterns: [/최대\s*\d+\s*%\s*할인/g,/파격\s*할인/g,/특가/g,/빅세일/g,/땡처리/g,/한정\s*할인/g,/오늘만/g,/마감\s*임박/g], 
+        severity:'medium', 
+        category:'불명확한 할인 광고', 
+        subcategory:'할인 조건 불명확', 
+        legalBasis:'의료법 제56조 제2항 제13호', 
+        penalty:'과태료 300만원 이하',
+        penaltyDetail: '할인 조건을 명확히 표시하지 않으면 위반',
+        guidance:'할인 대상·기간·범위·할인 전 가격 명확히 표시',
+        description: '할인 광고 시 할인 대상, 기간, 범위, 할인 전 가격을 명확히 표시해야 합니다. "최대 할인", "파격 할인" 등 불명확한 표현은 금지됩니다.',
+        caseExample: '2023년 H의원: "최대 70% 할인" 표현으로 시정명령 (조건 미표시)',
+        fixBefore: '최대 50% 할인! 오늘만!',
+        fixAfter: '레이저 토닝 1회 10만원 → 8만원 (1/1~1/31, 신규 회원 한정)',
+        deductionPerMatch: 6
+      },
+      unapprovedTech: { 
+        patterns: [/신기술/g,/혁신\s*기술/g,/최신\s*기술/g,/새로운\s*치료법/g,/특허\s*(시술|기술)/g,/신개념/g,/차세대/g], 
+        severity:'high', 
+        category:'미평가 신의료기술 광고', 
+        subcategory:'평가받지 않은 기술', 
+        legalBasis:'의료법 제56조 제2항 제3호', 
+        penalty:'과태료 300만원 이하',
+        penaltyDetail: '신의료기술평가를 받지 않은 기술 광고 시 위반',
+        guidance:'신의료기술평가위원회 평가 필요',
+        description: '신의료기술로 평가받지 않은 시술이나 기술을 "신기술", "혁신 기술" 등으로 광고하는 것은 금지됩니다.',
+        caseExample: '2022년 I의원: 미평가 시술을 "신기술"로 광고하여 과태료 300만원',
+        fixBefore: '최신 신기술 레이저, 혁신적 치료법',
+        fixAfter: 'FDA 승인 레이저 장비, 검증된 시술법',
+        deductionPerMatch: 12
+      }
     };
+    
     const requiredDisclosures = {
-      institutionName: { description:'의료기관 명칭', pattern:/(병원|의원|클리닉|한의원|치과)/g, importance:'critical' },
-      institutionType: { description:'의료기관 종별', pattern:/(종합병원|병원|의원|한의원|치과의원|치과병원)/g, importance:'high' },
-      sideEffects: { description:'부작용 안내', pattern:/(부작용|주의사항|개인차|개인에\s*따라)/g, importance:'high' }
+      institutionName: { description:'의료기관 명칭', pattern:/(병원|의원|클리닉|한의원|치과)/g, importance:'critical', deduction: 5 },
+      institutionType: { description:'의료기관 종별', pattern:/(종합병원|병원|의원|한의원|치과의원|치과병원)/g, importance:'high', deduction: 3 },
+      sideEffects: { description:'부작용 안내', pattern:/(부작용|주의사항|개인차|개인에\s*따라)/g, importance:'high', deduction: 3 }
     };
 
+    let originalText = '';
+
     function analyzeText(text) {
-      const result = { score:100, totalViolations:0, violations:[], missingDisclosures:[], grade:{grade:'A',label:'우수',color:'#22c55e'}, recommendations:[], summary:'' };
+      originalText = text;
+      const result = { score:100, totalViolations:0, violations:[], missingDisclosures:[], grade:{grade:'A',label:'우수',color:'#22c55e'}, recommendations:[], summary:'', scoreDeductions: [] };
+      
       for (const [k,cfg] of Object.entries(patterns)) {
         const found = [];
-        for (const p of cfg.patterns) { const m = text.match(p); if(m) found.push(...m); }
+        const contexts = [];
+        for (const p of cfg.patterns) { 
+          const m = text.match(p); 
+          if(m) {
+            found.push(...m);
+            // 문맥 추출
+            m.forEach(match => {
+              const idx = text.indexOf(match);
+              const start = Math.max(0, idx - 30);
+              const end = Math.min(text.length, idx + match.length + 30);
+              let context = text.substring(start, end);
+              if (start > 0) context = '...' + context;
+              if (end < text.length) context = context + '...';
+              contexts.push({ match, context });
+            });
+          }
+        }
         if (found.length > 0) {
-          result.violations.push({ category:cfg.category, subcategory:cfg.subcategory, severity:cfg.severity, count:found.length, matches:[...new Set(found)], legalBasis:cfg.legalBasis, penalty:cfg.penalty, guidance:cfg.guidance });
+          const deduction = Math.min(cfg.deductionPerMatch * found.length, 45);
+          result.violations.push({ 
+            category:cfg.category, 
+            subcategory:cfg.subcategory, 
+            severity:cfg.severity, 
+            count:found.length, 
+            matches:[...new Set(found)], 
+            contexts: contexts.slice(0, 5), // 최대 5개 문맥
+            legalBasis:cfg.legalBasis, 
+            penalty:cfg.penalty,
+            penaltyDetail: cfg.penaltyDetail,
+            guidance:cfg.guidance,
+            description: cfg.description,
+            caseExample: cfg.caseExample,
+            fixBefore: cfg.fixBefore,
+            fixAfter: cfg.fixAfter,
+            deduction: deduction
+          });
           result.totalViolations += found.length;
-          const d = cfg.severity==='critical'?20:cfg.severity==='high'?12:6;
-          result.score -= Math.min(d*found.length, 45);
+          result.score -= deduction;
+          result.scoreDeductions.push({ category: cfg.category, count: found.length, deduction: deduction });
         }
       }
+      
       for (const [k,cfg] of Object.entries(requiredDisclosures)) {
-        if (!text.match(cfg.pattern)) { result.missingDisclosures.push({item:cfg.description,importance:cfg.importance}); result.score -= cfg.importance==='critical'?5:3; }
+        if (!text.match(cfg.pattern)) { 
+          result.missingDisclosures.push({item:cfg.description, importance:cfg.importance, deduction: cfg.deduction}); 
+          result.score -= cfg.deduction;
+          result.scoreDeductions.push({ category: cfg.description + ' 누락', count: 1, deduction: cfg.deduction });
+        }
       }
+      
       result.score = Math.max(0, result.score);
       if (result.score>=90) result.grade={grade:'A',label:'우수',color:'#22c55e'};
       else if (result.score>=70) result.grade={grade:'B',label:'양호',color:'#84cc16'};
       else if (result.score>=50) result.grade={grade:'C',label:'주의',color:'#eab308'};
       else if (result.score>=30) result.grade={grade:'D',label:'위험',color:'#f97316'};
       else result.grade={grade:'F',label:'심각',color:'#ef4444'};
+      
       for (const v of result.violations) {
-        if (v.category==='과장광고') result.recommendations.push({priority:'high',icon:'⚡',message:`"${v.matches[0]}" 등 최상급 표현 삭제 또는 객관적 근거 명시`});
-        else if (v.category==='효과보장 광고') result.recommendations.push({priority:'critical',icon:'🚨',message:`효과 보장 표현 삭제 필수. "개인차가 있을 수 있습니다" 추가`});
-        else if (v.category==='환자 유인행위') result.recommendations.push({priority:'critical',icon:'⛔',message:`형사처벌 대상! 금품 제공/과도한 할인 표현 즉시 삭제`});
-        else if (v.category==='치료경험담 광고') result.recommendations.push({priority:'high',icon:'📋',message:`전후 사진/후기는 로그인 필수 영역으로 이동 필요`});
+        if (v.category==='과장광고') result.recommendations.push({priority:'high',icon:'⚡',message:`"${v.matches[0]}" 등 최상급 표현 삭제 또는 객관적 근거 명시`, before: v.fixBefore, after: v.fixAfter});
+        else if (v.category==='효과보장 광고') result.recommendations.push({priority:'critical',icon:'🚨',message:`효과 보장 표현 삭제 필수. "개인차가 있을 수 있습니다" 추가`, before: v.fixBefore, after: v.fixAfter});
+        else if (v.category==='환자 유인행위') result.recommendations.push({priority:'critical',icon:'⛔',message:`형사처벌 대상! 금품 제공/과도한 할인 표현 즉시 삭제`, before: v.fixBefore, after: v.fixAfter});
+        else if (v.category==='치료경험담 광고') result.recommendations.push({priority:'high',icon:'📋',message:`전후 사진/후기는 로그인 필수 영역으로 이동 필요`, before: v.fixBefore, after: v.fixAfter});
       }
+      
       const critical = result.violations.filter(v=>v.severity==='critical').length;
       result.summary = result.totalViolations===0?'위반 사항이 발견되지 않았습니다. 🎉':critical>0?`⚠️ 심각한 위반 ${critical}건 포함, 즉시 수정이 필요합니다!`:`${result.violations.length}개 카테고리에서 위반 사항이 발견되었습니다.`;
       return result;
@@ -257,7 +448,6 @@
         crawledText = data.text;
         crawledUrl = url;
 
-        // 미리보기 표시
         statusEl.classList.add('hidden');
         previewEl.classList.remove('hidden');
         
@@ -289,7 +479,6 @@
       document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.add('bg-primary','text-white');
       document.querySelectorAll('.input-area').forEach(a=>a.classList.add('hidden'));
       document.getElementById('input'+tab.charAt(0).toUpperCase()+tab.slice(1)).classList.remove('hidden');
-      // 크롤링 상태 초기화
       document.getElementById('crawlStatus').classList.add('hidden');
       document.getElementById('crawlPreview').classList.add('hidden');
     }
@@ -300,8 +489,19 @@
     }
     function clearInput(){textInput.value='';charCount.textContent='0자';}
     
-    function getSeverityStyle(s){return s==='critical'?'bg-red-50 border-red-200':s==='high'?'bg-orange-50 border-orange-200':s==='medium'?'bg-yellow-50 border-yellow-200':'bg-gray-50 border-gray-200';}
+    function getSeverityStyle(s){return s==='critical'?'bg-red-50 border-red-300':s==='high'?'bg-orange-50 border-orange-300':s==='medium'?'bg-yellow-50 border-yellow-300':'bg-gray-50 border-gray-300';}
     function getSeverityBadge(s){return s==='critical'?'<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">🔴 심각</span>':s==='high'?'<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700">🟠 높음</span>':s==='medium'?'<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">🟡 보통</span>':'<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">⚪ 낮음</span>';}
+    
+    function highlightContext(context, match) {
+      return context.replace(new RegExp(match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), `<span class="highlight-in-context">${match}</span>`);
+    }
+
+    function toggleDetail(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('open');
+      const icon = document.getElementById(id + '-icon');
+      icon.textContent = el.classList.contains('open') ? '▼' : '▶';
+    }
     
     async function analyze(){
       const btn=document.getElementById('analyzeBtn');
@@ -321,7 +521,6 @@
           return;
         }
         
-        // URL 유효성 검사
         try {
           new URL(url);
         } catch (e) {
@@ -357,7 +556,6 @@
     function renderResult(r, sourceUrl=''){
       document.getElementById('resultSection').classList.remove('hidden');
       
-      // 소스 URL 표시
       const sourceInfo = document.getElementById('sourceInfo');
       if (sourceUrl) {
         sourceInfo.classList.remove('hidden');
@@ -373,14 +571,168 @@
       document.getElementById('gradeLabel').textContent=`${r.grade.grade}등급 (${r.grade.label})`;
       document.getElementById('gradeLabel').style.color=r.grade.color;
       document.getElementById('resultSummary').innerHTML=r.summary;
+      
       const crit=r.violations.filter(v=>v.severity==='critical').length,high=r.violations.filter(v=>v.severity==='high').length;
       document.getElementById('resultStats').innerHTML=`${crit>0?`<span class="px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-sm font-medium">심각 ${crit}</span>`:''} ${high>0?`<span class="px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">높음 ${high}</span>`:''} <span class="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">총 ${r.totalViolations}건</span>`;
+      
+      // 점수 상세 내역
+      const scoreDetails = document.getElementById('scoreDetails');
+      scoreDetails.innerHTML = `
+        <div class="flex items-center justify-between text-sm py-1">
+          <span class="text-gray-600">기본 점수</span>
+          <span class="font-medium text-gray-900">100점</span>
+        </div>
+        ${r.scoreDeductions.map(d => `
+          <div class="flex items-center justify-between text-sm py-1">
+            <span class="text-gray-600">${d.category} (${d.count}건)</span>
+            <span class="font-medium text-red-600">-${d.deduction}점</span>
+          </div>
+        `).join('')}
+        <div class="flex items-center justify-between text-sm py-2 border-t border-gray-200 mt-2 pt-2">
+          <span class="font-semibold text-gray-900">최종 점수</span>
+          <span class="font-bold text-lg" style="color: ${r.grade.color}">${r.score}점</span>
+        </div>
+      `;
+
+      // 위반 항목 (상세 정보 포함)
       const vc=document.getElementById('violationsCard'),vl=document.getElementById('violationsList');
-      if(r.violations.length>0){vc.classList.remove('hidden');document.getElementById('violationCount').textContent=`${r.violations.length}개 카테고리`;vl.innerHTML=r.violations.map(v=>`<div class="violation-card p-5 rounded-xl border-2 ${getSeverityStyle(v.severity)}"><div class="flex items-start justify-between mb-3"><div><span class="font-bold text-gray-900">${v.category}</span><span class="text-sm text-gray-500 ml-2">(${v.subcategory})</span></div>${getSeverityBadge(v.severity)}</div><div class="mb-3"><span class="text-sm font-medium text-gray-700">발견 표현 (${v.count}건):</span><div class="mt-1 flex flex-wrap gap-2">${v.matches.map(m=>`<span class="highlight-match text-sm font-medium">${m}</span>`).join('')}</div></div><div class="text-sm space-y-1.5 text-gray-600 bg-white/50 p-3 rounded-lg"><p>📋 <strong>근거:</strong> ${v.legalBasis}</p><p>⚖️ <strong>처벌:</strong> ${v.penalty}</p><p>💡 <strong>조치:</strong> ${v.guidance}</p></div></div>`).join('');}else{vc.classList.add('hidden');}
+      if(r.violations.length>0){
+        vc.classList.remove('hidden');
+        document.getElementById('violationCount').textContent=`${r.violations.length}개 카테고리`;
+        vl.innerHTML=r.violations.map((v, idx) => `
+          <div class="violation-card rounded-xl border-2 ${getSeverityStyle(v.severity)} overflow-hidden">
+            <!-- 헤더 -->
+            <div class="p-5">
+              <div class="flex items-start justify-between mb-3">
+                <div>
+                  <span class="font-bold text-gray-900 text-lg">${v.category}</span>
+                  <span class="text-sm text-gray-500 ml-2">(${v.subcategory})</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                  ${getSeverityBadge(v.severity)}
+                  <span class="text-sm text-red-600 font-medium">-${v.deduction}점</span>
+                </div>
+              </div>
+              
+              <!-- 발견 표현 -->
+              <div class="mb-4">
+                <span class="text-sm font-semibold text-gray-700">발견 표현 (${v.count}건):</span>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  ${v.matches.map(m=>`<span class="highlight-match">${m}</span>`).join('')}
+                </div>
+              </div>
+              
+              <!-- 문맥 보기 -->
+              ${v.contexts.length > 0 ? `
+                <div class="mb-4">
+                  <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치</p>
+                  <div class="space-y-2">
+                    ${v.contexts.slice(0, 3).map(ctx => `
+                      <div class="context-box">
+                        ${highlightContext(ctx.context, ctx.match)}
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+              
+              <!-- 상세 정보 토글 -->
+              <div class="detail-toggle flex items-center text-sm text-primary font-medium" onclick="toggleDetail('detail-${idx}')">
+                <span id="detail-${idx}-icon" class="mr-1">▶</span>
+                상세 정보 보기
+              </div>
+            </div>
+            
+            <!-- 상세 정보 (접힘) -->
+            <div id="detail-${idx}" class="detail-content bg-white border-t">
+              <div class="p-5 space-y-4">
+                <!-- 설명 -->
+                <div>
+                  <p class="text-sm font-semibold text-gray-700 mb-1">📖 위반 내용 설명</p>
+                  <p class="text-sm text-gray-600">${v.description}</p>
+                </div>
+                
+                <!-- 법적 근거 -->
+                <div class="grid md:grid-cols-2 gap-4">
+                  <div class="bg-gray-50 p-3 rounded-lg">
+                    <p class="text-xs font-semibold text-gray-500 mb-1">📋 법적 근거</p>
+                    <p class="text-sm font-medium text-gray-800">${v.legalBasis}</p>
+                  </div>
+                  <div class="bg-gray-50 p-3 rounded-lg">
+                    <p class="text-xs font-semibold text-gray-500 mb-1">⚖️ 처벌 수준</p>
+                    <p class="text-sm font-medium text-gray-800">${v.penalty}</p>
+                    <p class="text-xs text-gray-500 mt-1">${v.penaltyDetail}</p>
+                  </div>
+                </div>
+                
+                <!-- 실제 사례 -->
+                <div class="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                  <p class="text-xs font-semibold text-amber-700 mb-1">⚠️ 실제 처분 사례</p>
+                  <p class="text-sm text-amber-800">${v.caseExample}</p>
+                </div>
+                
+                <!-- 수정 예시 -->
+                <div>
+                  <p class="text-sm font-semibold text-gray-700 mb-2">✏️ 수정 예시</p>
+                  <div class="grid md:grid-cols-2 gap-3">
+                    <div class="problem-example p-3 rounded-lg">
+                      <p class="text-xs font-semibold text-red-700 mb-1">❌ 수정 전</p>
+                      <p class="text-sm text-red-800">${v.fixBefore}</p>
+                    </div>
+                    <div class="fix-example p-3 rounded-lg">
+                      <p class="text-xs font-semibold text-green-700 mb-1">✅ 수정 후</p>
+                      <p class="text-sm text-green-800">${v.fixAfter}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }else{vc.classList.add('hidden');}
+      
+      // 필수 표기사항
       const dc=document.getElementById('disclosuresCard'),dl=document.getElementById('disclosuresList');
-      if(r.missingDisclosures.length>0){dc.classList.remove('hidden');dl.innerHTML=r.missingDisclosures.map(m=>`<li class="flex items-center justify-between bg-amber-50 text-amber-800 px-4 py-3 rounded-xl border border-amber-200"><span class="flex items-center"><span class="mr-2 text-lg">⚠️</span><span class="font-medium">${m.item}</span></span>${m.importance==='critical'?'<span class="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-medium">필수</span>':''}</li>`).join('');}else{dc.classList.add('hidden');}
+      if(r.missingDisclosures.length>0){
+        dc.classList.remove('hidden');
+        dl.innerHTML=r.missingDisclosures.map(m=>`
+          <li class="flex items-center justify-between bg-amber-50 text-amber-800 px-4 py-3 rounded-xl border border-amber-200">
+            <span class="flex items-center">
+              <span class="mr-2 text-lg">⚠️</span>
+              <span class="font-medium">${m.item}</span>
+            </span>
+            <div class="flex items-center space-x-2">
+              ${m.importance==='critical'?'<span class="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-medium">필수</span>':''}
+              <span class="text-sm text-red-600 font-medium">-${m.deduction}점</span>
+            </div>
+          </li>
+        `).join('');
+      }else{dc.classList.add('hidden');}
+      
+      // 개선 권고사항 (수정 예시 포함)
       const rc=document.getElementById('recommendationsCard'),rl=document.getElementById('recommendationsList');
-      if(r.recommendations.length>0){rc.classList.remove('hidden');rl.innerHTML=r.recommendations.map(rec=>`<li class="flex items-start p-4 rounded-xl ${rec.priority==='critical'?'bg-red-50 border border-red-200':'bg-gray-50 border border-gray-200'}"><span class="mr-3 text-2xl">${rec.icon}</span><span class="text-gray-700 font-medium">${rec.message}</span></li>`).join('');}else{rc.classList.add('hidden');}
+      if(r.recommendations.length>0){
+        rc.classList.remove('hidden');
+        rl.innerHTML=r.recommendations.map(rec=>`
+          <li class="p-4 rounded-xl ${rec.priority==='critical'?'bg-red-50 border border-red-200':'bg-gray-50 border border-gray-200'}">
+            <div class="flex items-start mb-3">
+              <span class="mr-3 text-2xl">${rec.icon}</span>
+              <span class="text-gray-700 font-medium">${rec.message}</span>
+            </div>
+            ${rec.before && rec.after ? `
+              <div class="grid md:grid-cols-2 gap-3 ml-9">
+                <div class="problem-example p-2 rounded-lg text-sm">
+                  <span class="text-red-700 font-medium">❌</span> ${rec.before}
+                </div>
+                <div class="fix-example p-2 rounded-lg text-sm">
+                  <span class="text-green-700 font-medium">✅</span> ${rec.after}
+                </div>
+              </div>
+            ` : ''}
+          </li>
+        `).join('');
+      }else{rc.classList.add('hidden');}
+      
       document.getElementById('resultSection').scrollIntoView({behavior:'smooth',block:'start'});
     }
     

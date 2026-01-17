@@ -116,6 +116,7 @@ export async function onRequest(context) {
       JSON.stringify({
         success: true,
         analysis: analysisResult,
+        screenshot: screenshotBase64 || null,
         hasScreenshot: !!screenshotBase64,
         loginCheckResults,
         analyzedAt: new Date().toISOString()
@@ -316,6 +317,12 @@ ${violationsList}
       "confidence": "high"/"medium"/"low",
       "visualLocation": "메뉴바/본문/배너/팝업/확인불가",
       "requiresLogin": true/false,
+      "boundingBox": {
+        "x": 0-100,
+        "y": 0-100,
+        "width": 0-100,
+        "height": 0-100
+      },
       "reason": "시각적 위치와 맥락을 기반으로 판단 이유 설명 (친절한 톤). 로그인 필요 여부를 반드시 언급.",
       "suggestion": "수정이 필요한 경우 구체적인 수정 제안"
     }
@@ -323,6 +330,15 @@ ${violationsList}
   "overallAssessment": "전체 페이지에 대한 종합 의견 (로그인 필요 콘텐츠 여부 포함)",
   "summary": "분석 요약 (친절한 톤)"
 }
+
+**boundingBox 설명**: 
+- 스크린샷 이미지에서 해당 텍스트가 위치한 영역을 백분율(%)로 표시
+- x: 왼쪽 가장자리에서의 시작 위치 (0-100%)
+- y: 상단에서의 시작 위치 (0-100%)
+- width: 박스의 너비 (0-100%)
+- height: 박스의 높이 (0-100%)
+- 예: 화면 중앙 상단에 있다면 {"x": 30, "y": 10, "width": 40, "height": 5}
+- 정확히 찾을 수 없으면 null로 설정
 
 JSON만 출력하세요.`;
 }

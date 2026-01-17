@@ -36,11 +36,87 @@
     .analysis-progress { background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #3b82f6 100%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     .location-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; font-weight: 500; }
-    .screenshot-container { position: relative; border-radius: 12px; overflow: hidden; background: #f3f4f6; }
-    .screenshot-container img { width: 100%; height: auto; display: block; }
-    .marker-box { position: absolute; border: 3px solid #ef4444; background: rgba(239, 68, 68, 0.15); border-radius: 4px; animation: pulse-border 2s infinite; }
-    @keyframes pulse-border { 0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 50% { border-color: #f87171; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); } }
-    .marker-label { position: absolute; top: -24px; left: 0; background: #ef4444; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+    .screenshot-container { 
+      position: relative; 
+      border-radius: 12px; 
+      overflow: hidden; 
+      background: #f3f4f6; 
+      border: 1px solid #e5e7eb;
+      width: 100%;
+      max-width: 100%;
+    }
+    .screenshot-container img { 
+      width: 100%; 
+      height: auto; 
+      display: block; 
+      min-height: 200px;
+      max-height: 400px;
+      object-fit: cover;
+      object-position: top;
+      background: #f9fafb;
+    }
+    .screenshot-container img.loading {
+      background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+    }
+    .screenshot-placeholder {
+      width: 100%;
+      height: 250px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f9fafb;
+      color: #9ca3af;
+      font-size: 0.875rem;
+    }
+    .marker-box { 
+      position: absolute; 
+      border: 3px solid #ef4444; 
+      background: rgba(239, 68, 68, 0.2); 
+      border-radius: 4px; 
+      animation: pulse-border 2s infinite;
+      pointer-events: none;
+      min-width: 50px;
+      min-height: 20px;
+    }
+    .marker-box.safe {
+      border-color: #22c55e;
+      background: rgba(34, 197, 94, 0.2);
+    }
+    @keyframes pulse-border { 
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 
+      50% { opacity: 0.8; box-shadow: 0 0 8px 2px rgba(239, 68, 68, 0.3); } 
+    }
+    .marker-label { 
+      position: absolute; 
+      top: -28px; 
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ef4444; 
+      color: white; 
+      font-size: 0.75rem; 
+      padding: 4px 10px; 
+      border-radius: 6px; 
+      font-weight: 600; 
+      white-space: nowrap;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .marker-label.safe {
+      background: #22c55e;
+    }
+    .screenshot-error {
+      width: 100%;
+      height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #fef2f2;
+      color: #991b1b;
+      font-size: 0.875rem;
+      border-radius: 12px;
+    }
   </style>
 </head>
 <body class="bg-pattern min-h-screen">
@@ -439,6 +515,32 @@
     let analyzedSourceUrl = '';
 
     // ============================================
+    // 스크린샷 URL 생성 (여러 서비스 지원)
+    // ============================================
+    function getScreenshotUrl(url) {
+      // 1순위: thum.io (무료, 빠름)
+      return `https://image.thum.io/get/width/1200/crop/800/noanimate/${encodeURIComponent(url)}`;
+    }
+    
+    function getBackupScreenshotUrl(url) {
+      // 2순위: 다른 형식의 thum.io
+      return `https://image.thum.io/get/width/1200/${encodeURIComponent(url)}`;
+    }
+    
+    // 스크린샷 로드 실패 시 백업 서비스 시도
+    function handleScreenshotError(img, url) {
+      if (!img.dataset.retried && url) {
+        img.dataset.retried = 'true';
+        img.src = getBackupScreenshotUrl(url);
+      } else {
+        // 백업도 실패하면 플레이스홀더 표시
+        const container = img.parentElement;
+        const markers = container.querySelectorAll('.marker-box');
+        container.innerHTML = '<div class="screenshot-placeholder">📷 스크린샷을 불러올 수 없습니다<br><span class="text-xs">원본 페이지에서 직접 확인해주세요</span></div>';
+      }
+    }
+
+    // ============================================
     // 1차 분석: 키워드 매칭
     // ============================================
     function firstPassAnalysis(text) {
@@ -525,8 +627,11 @@
     // ============================================
     // 최종 결과 계산
     // ============================================
-    function calculateFinalResult(text, suspected, aiResult) {
+    function calculateFinalResult(text, suspected, aiResult, sourceUrl) {
       const { analysis: aiAnalysis, hasScreenshot, screenshotUrl } = aiResult || {};
+      
+      // 스크린샷 URL: API에서 받거나, sourceUrl로 직접 생성
+      const finalScreenshotUrl = screenshotUrl || (sourceUrl ? getScreenshotUrl(sourceUrl) : null);
       
       const result = {
         score: 100,
@@ -535,8 +640,8 @@
         missingDisclosures: [],
         scoreDeductions: [],
         aiAnalyzed: !!aiAnalysis,
-        hasScreenshot: hasScreenshot,
-        screenshotUrl: screenshotUrl,
+        hasScreenshot: hasScreenshot || !!finalScreenshotUrl,
+        screenshotUrl: finalScreenshotUrl,
         aiSummary: aiAnalysis?.summary || '',
         overallAssessment: aiAnalysis?.overallAssessment || ''
       };
@@ -797,7 +902,7 @@
       
       await new Promise(r => setTimeout(r, 200));
       
-      const result = calculateFinalResult(textToAnalyze, suspected, aiResult);
+      const result = calculateFinalResult(textToAnalyze, suspected, aiResult, urlToAnalyze);
       
       updateProgress('완료!', 100);
       await new Promise(r => setTimeout(r, 300));
@@ -872,38 +977,42 @@
       const vl = document.getElementById('violationsList');
       if (r.violations.length > 0) {
         vc.classList.remove('hidden');
-        vl.innerHTML = r.violations.map(v => {
+        vl.innerHTML = r.violations.map((v, idx) => {
           const caseData = penaltyCases[v.key] || {};
           
           // 스크린샷 + 마킹 HTML
           let screenshotHtml = '';
-          if (r.screenshotUrl && v.boundingBox) {
+          if (r.screenshotUrl) {
+            const hasBox = v.boundingBox && v.boundingBox.x !== undefined;
+            const imgId = `screenshot-img-${idx}`;
             screenshotHtml = `
               <div class="mb-5">
-                <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치 (스크린샷)</p>
-                <div class="screenshot-container">
-                  <img src="${r.screenshotUrl}" alt="페이지 스크린샷" crossorigin="anonymous" />
-                  <div class="marker-box" style="
-                    left: ${v.boundingBox.x}%;
-                    top: ${v.boundingBox.y}%;
-                    width: ${v.boundingBox.width}%;
-                    height: ${v.boundingBox.height}%;
-                  ">
-                    <span class="marker-label">${v.matches[0]}</span>
-                  </div>
-                </div>
-              </div>
-            `;
-          } else if (r.screenshotUrl) {
-            // 스크린샷은 있지만 좌표가 없는 경우
-            screenshotHtml = `
-              <div class="mb-5">
-                <p class="text-sm font-semibold text-gray-700 mb-2">📍 페이지 스크린샷</p>
-                <div class="screenshot-container">
-                  <img src="${r.screenshotUrl}" alt="페이지 스크린샷" crossorigin="anonymous" />
+                <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치 (페이지 스크린샷)</p>
+                <div class="screenshot-container" id="screenshot-${idx}">
+                  <img 
+                    id="${imgId}"
+                    src="${r.screenshotUrl}" 
+                    alt="페이지 스크린샷" 
+                    class="loading"
+                    onload="this.classList.remove('loading')"
+                    onerror="handleScreenshotError(this, '${analyzedSourceUrl}')"
+                  />
+                  ${hasBox ? `
+                    <div class="marker-box" style="
+                      left: ${v.boundingBox.x}%;
+                      top: ${v.boundingBox.y}%;
+                      width: ${Math.max(v.boundingBox.width, 5)}%;
+                      height: ${Math.max(v.boundingBox.height, 3)}%;
+                    ">
+                      <span class="marker-label">${v.matches[0]}</span>
+                    </div>
+                  ` : ''}
                 </div>
                 ${v.contexts && v.contexts.length > 0 ? `
-                  <div class="context-box mt-2">${highlightContext(v.contexts[0].context, v.matches)}</div>
+                  <div class="context-box mt-3">
+                    <span class="text-xs text-gray-500 block mb-1">📝 텍스트에서 발견:</span>
+                    ${highlightContext(v.contexts[0].context, v.matches)}
+                  </div>
                 ` : ''}
               </div>
             `;
@@ -1002,22 +1111,26 @@
       const sl = document.getElementById('safeItemsList');
       if (r.safeItems.length > 0) {
         sc.classList.remove('hidden');
-        sl.innerHTML = r.safeItems.map(v => {
+        sl.innerHTML = r.safeItems.map((v, idx) => {
           let screenshotHtml = '';
           if (r.screenshotUrl && v.boundingBox) {
             screenshotHtml = `
               <div class="mt-3">
-                <div class="screenshot-container" style="max-height: 200px; overflow: hidden;">
-                  <img src="${r.screenshotUrl}" alt="페이지 스크린샷" crossorigin="anonymous" />
-                  <div class="marker-box" style="
+                <div class="screenshot-container" style="max-height: 250px;">
+                  <img 
+                    src="${r.screenshotUrl}" 
+                    alt="페이지 스크린샷"
+                    class="loading"
+                    onload="this.classList.remove('loading')"
+                    onerror="this.style.display='none'"
+                  />
+                  <div class="marker-box safe" style="
                     left: ${v.boundingBox.x}%;
                     top: ${v.boundingBox.y}%;
-                    width: ${v.boundingBox.width}%;
-                    height: ${v.boundingBox.height}%;
-                    border-color: #22c55e;
-                    background: rgba(34, 197, 94, 0.15);
+                    width: ${Math.max(v.boundingBox.width, 5)}%;
+                    height: ${Math.max(v.boundingBox.height, 3)}%;
                   ">
-                    <span class="marker-label" style="background: #22c55e;">${v.matches[0]}</span>
+                    <span class="marker-label safe">${v.matches[0]}</span>
                   </div>
                 </div>
               </div>

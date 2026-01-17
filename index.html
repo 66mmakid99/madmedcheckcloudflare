@@ -62,13 +62,15 @@
     }
     .screenshot-placeholder {
       width: 100%;
-      height: 250px;
+      height: 200px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #f9fafb;
-      color: #9ca3af;
+      background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+      color: #6b7280;
       font-size: 0.875rem;
+      border-radius: 12px;
+      border: 2px dashed #e5e7eb;
     }
     .marker-box { 
       position: absolute; 
@@ -517,26 +519,43 @@
     // ============================================
     // 스크린샷 URL 생성 (여러 서비스 지원)
     // ============================================
-    function getScreenshotUrl(url) {
-      // 1순위: thum.io (무료, 빠름)
-      return `https://image.thum.io/get/width/1200/crop/800/noanimate/${encodeURIComponent(url)}`;
+    const screenshotServices = [
+      // 1순위: WordPress mshots (한국 사이트 잘 지원)
+      (url) => `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=1280`,
+      // 2순위: thum.io 기본
+      (url) => `https://image.thum.io/get/width/1280/${encodeURIComponent(url)}`,
+      // 3순위: thum.io noanimate
+      (url) => `https://image.thum.io/get/width/1200/noanimate/${encodeURIComponent(url)}`,
+      // 4순위: PagePeeker
+      (url) => `https://free.pagepeeker.com/v2/thumbs.php?size=x&url=${encodeURIComponent(url)}`,
+    ];
+    
+    function getScreenshotUrl(url, serviceIndex = 0) {
+      if (serviceIndex >= screenshotServices.length) return null;
+      return screenshotServices[serviceIndex](url);
     }
     
-    function getBackupScreenshotUrl(url) {
-      // 2순위: 다른 형식의 thum.io
-      return `https://image.thum.io/get/width/1200/${encodeURIComponent(url)}`;
-    }
-    
-    // 스크린샷 로드 실패 시 백업 서비스 시도
+    // 스크린샷 로드 실패 시 다음 서비스 시도
     function handleScreenshotError(img, url) {
-      if (!img.dataset.retried && url) {
-        img.dataset.retried = 'true';
-        img.src = getBackupScreenshotUrl(url);
+      const currentIndex = parseInt(img.dataset.serviceIndex || '0');
+      const nextIndex = currentIndex + 1;
+      
+      if (nextIndex < screenshotServices.length && url) {
+        img.dataset.serviceIndex = nextIndex;
+        img.src = getScreenshotUrl(url, nextIndex);
+        console.log(`Screenshot service ${currentIndex} failed, trying ${nextIndex}`);
       } else {
-        // 백업도 실패하면 플레이스홀더 표시
+        // 모든 서비스 실패 시 플레이스홀더 표시
         const container = img.parentElement;
-        const markers = container.querySelectorAll('.marker-box');
-        container.innerHTML = '<div class="screenshot-placeholder">📷 스크린샷을 불러올 수 없습니다<br><span class="text-xs">원본 페이지에서 직접 확인해주세요</span></div>';
+        container.innerHTML = `
+          <div class="screenshot-placeholder">
+            <div class="text-center">
+              <span class="text-3xl mb-2 block">📷</span>
+              <span>스크린샷을 불러올 수 없습니다</span><br>
+              <a href="${url}" target="_blank" class="text-primary text-sm underline mt-2 inline-block">원본 페이지에서 직접 확인 →</a>
+            </div>
+          </div>
+        `;
       }
     }
 
@@ -630,8 +649,8 @@
     function calculateFinalResult(text, suspected, aiResult, sourceUrl) {
       const { analysis: aiAnalysis, hasScreenshot, screenshotUrl } = aiResult || {};
       
-      // 스크린샷 URL: API에서 받거나, sourceUrl로 직접 생성
-      const finalScreenshotUrl = screenshotUrl || (sourceUrl ? getScreenshotUrl(sourceUrl) : null);
+      // 스크린샷 URL: API에서 받거나, sourceUrl로 직접 생성 (첫 번째 서비스 사용)
+      const finalScreenshotUrl = screenshotUrl || (sourceUrl ? getScreenshotUrl(sourceUrl, 0) : null);
       
       const result = {
         score: 100,
@@ -985,6 +1004,7 @@
           if (r.screenshotUrl) {
             const hasBox = v.boundingBox && v.boundingBox.x !== undefined;
             const imgId = `screenshot-img-${idx}`;
+            const escapedUrl = analyzedSourceUrl.replace(/'/g, "\\'");
             screenshotHtml = `
               <div class="mb-5">
                 <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치 (페이지 스크린샷)</p>
@@ -994,8 +1014,10 @@
                     src="${r.screenshotUrl}" 
                     alt="페이지 스크린샷" 
                     class="loading"
+                    data-service-index="0"
+                    data-url="${escapedUrl}"
                     onload="this.classList.remove('loading')"
-                    onerror="handleScreenshotError(this, '${analyzedSourceUrl}')"
+                    onerror="handleScreenshotError(this, this.dataset.url)"
                   />
                   ${hasBox ? `
                     <div class="marker-box" style="
@@ -1114,6 +1136,7 @@
         sl.innerHTML = r.safeItems.map((v, idx) => {
           let screenshotHtml = '';
           if (r.screenshotUrl && v.boundingBox) {
+            const escapedUrl = analyzedSourceUrl.replace(/'/g, "\\'");
             screenshotHtml = `
               <div class="mt-3">
                 <div class="screenshot-container" style="max-height: 250px;">
@@ -1121,8 +1144,10 @@
                     src="${r.screenshotUrl}" 
                     alt="페이지 스크린샷"
                     class="loading"
+                    data-service-index="0"
+                    data-url="${escapedUrl}"
                     onload="this.classList.remove('loading')"
-                    onerror="this.style.display='none'"
+                    onerror="handleScreenshotError(this, this.dataset.url)"
                   />
                   <div class="marker-box safe" style="
                     left: ${v.boundingBox.x}%;

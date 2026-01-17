@@ -48,34 +48,49 @@ export async function onRequest(context) {
     // 1. 로그인 필요 여부 사전 체크 (전후사진/후기 관련 항목)
     const loginCheckResults = await checkLoginRequirements(url, text, suspectedViolations);
 
-    // 2. 스크린샷 URL 생성 (thum.io 직접 사용)
-    const screenshotUrl = `https://image.thum.io/get/width/1280/crop/900/noanimate/${encodeURIComponent(url)}`;
+    // 2. 스크린샷 URL 생성 (WordPress mshots - 한국 사이트 지원 좋음)
+    const screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=1280`;
     
     // 3. 스크린샷 가져와서 Claude Vision에 전달
     let screenshotBase64 = null;
     let screenshotAvailable = false;
     
-    try {
-      const screenshotResponse = await fetch(screenshotUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
+    // 여러 서비스 시도
+    const screenshotServices = [
+      `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=1280`,
+      `https://image.thum.io/get/width/1280/${encodeURIComponent(url)}`,
+    ];
+    
+    for (const serviceUrl of screenshotServices) {
+      if (screenshotAvailable) break;
       
-      if (screenshotResponse.ok) {
-        const arrayBuffer = await screenshotResponse.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
+      try {
+        const screenshotResponse = await fetch(serviceUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+        });
         
-        // Cloudflare Workers 호환 base64 인코딩
-        let binary = '';
-        const chunkSize = 8192;
-        for (let i = 0; i < uint8Array.length; i += chunkSize) {
-          const chunk = uint8Array.slice(i, i + chunkSize);
-          binary += String.fromCharCode.apply(null, chunk);
+        if (screenshotResponse.ok) {
+          const contentType = screenshotResponse.headers.get('content-type');
+          // 이미지인지 확인 (일부 서비스는 에러 시 HTML 반환)
+          if (contentType && contentType.includes('image')) {
+            const arrayBuffer = await screenshotResponse.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            
+            // Cloudflare Workers 호환 base64 인코딩
+            let binary = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < uint8Array.length; i += chunkSize) {
+              const chunk = uint8Array.slice(i, i + chunkSize);
+              binary += String.fromCharCode.apply(null, chunk);
+            }
+            screenshotBase64 = btoa(binary);
+            screenshotAvailable = true;
+            console.log('Screenshot captured from:', serviceUrl);
+          }
         }
-        screenshotBase64 = btoa(binary);
-        screenshotAvailable = true;
+      } catch (e) {
+        console.error('Screenshot error from', serviceUrl, ':', e.message);
       }
-    } catch (e) {
-      console.error('Screenshot error:', e);
     }
 
     // 4. Claude Vision API 호출

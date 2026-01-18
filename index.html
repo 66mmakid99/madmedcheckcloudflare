@@ -250,6 +250,15 @@
         </div>
       </div>
 
+      <!-- 분석 제한사항 리포트 -->
+      <div id="limitationsCard" class="bg-amber-50 rounded-2xl shadow-lg border border-amber-200 p-6 md:p-8 hidden">
+        <h3 class="text-xl font-bold text-amber-800 mb-2 flex items-center">
+          <span class="text-2xl mr-2">⚠️</span> 분석 시 참고사항
+        </h3>
+        <p class="text-amber-700 text-sm mb-4">아래 제한사항으로 인해 분석 결과가 부정확할 수 있습니다. 최종 확인을 권장드립니다.</p>
+        <ul id="limitationsList" class="space-y-2"></ul>
+      </div>
+
       <!-- 위반 항목 -->
       <div id="violationsCard" class="bg-white rounded-2xl shadow-lg border p-6 md:p-8 hidden">
         <h3 class="text-xl font-bold text-gray-900 mb-2 flex items-center">
@@ -500,17 +509,17 @@
     let analyzedSourceUrl = '';
 
     // ============================================
-    // 스크린샷 URL 생성 (여러 서비스 지원)
+    // 스크린샷 URL 생성 (Railway Puppeteer API 우선)
     // ============================================
+    const SCREENSHOT_API = 'https://puppeteer-screenshot-api-production.up.railway.app';
+    
     const screenshotServices = [
-      // 1순위: WordPress mshots (한국 사이트 잘 지원)
+      // 1순위: Railway Puppeteer API (팝업 제거됨)
+      (url) => `${SCREENSHOT_API}/screenshot?url=${encodeURIComponent(url)}&width=1280&height=900&format=image`,
+      // 2순위: WordPress mshots (폴백)
       (url) => `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=1280`,
-      // 2순위: thum.io 기본
+      // 3순위: thum.io (폴백)
       (url) => `https://image.thum.io/get/width/1280/${encodeURIComponent(url)}`,
-      // 3순위: thum.io noanimate
-      (url) => `https://image.thum.io/get/width/1200/noanimate/${encodeURIComponent(url)}`,
-      // 4순위: PagePeeker
-      (url) => `https://free.pagepeeker.com/v2/thumbs.php?size=x&url=${encodeURIComponent(url)}`,
     ];
     
     function getScreenshotUrl(url, serviceIndex = 0) {
@@ -612,17 +621,28 @@
         
         if (data.fallback || data.error) {
           console.log('AI 분석 fallback:', data.error);
-          return { analysis: null, hasScreenshot: false, screenshotUrl: null };
+          return { 
+            analysis: null, 
+            hasScreenshot: false, 
+            screenshotUrl: null,
+            limitations: ['⚠️ AI 분석을 수행하지 못했습니다. 키워드 기반 검사 결과만 표시됩니다.']
+          };
         }
         
         return { 
           analysis: data.analysis, 
           hasScreenshot: data.hasScreenshot,
-          screenshotUrl: data.screenshotUrl 
+          screenshotUrl: data.screenshotUrl,
+          limitations: data.limitations || []
         };
       } catch (error) {
         console.error('AI 분석 오류:', error);
-        return { analysis: null, hasScreenshot: false, screenshotUrl: null };
+        return { 
+          analysis: null, 
+          hasScreenshot: false, 
+          screenshotUrl: null,
+          limitations: ['⚠️ AI 분석 중 오류가 발생했습니다: ' + error.message]
+        };
       }
     }
 
@@ -630,10 +650,13 @@
     // 최종 결과 계산
     // ============================================
     function calculateFinalResult(text, suspected, aiResult, sourceUrl) {
-      const { analysis: aiAnalysis, hasScreenshot, screenshotUrl } = aiResult || {};
+      const { analysis: aiAnalysis, hasScreenshot, screenshotUrl, limitations: aiLimitations } = aiResult || {};
       
       // 스크린샷 URL: API에서 받거나, sourceUrl로 직접 생성 (첫 번째 서비스 사용)
       const finalScreenshotUrl = screenshotUrl || (sourceUrl ? getScreenshotUrl(sourceUrl, 0) : null);
+      
+      // 분석 제한사항 수집
+      const limitations = aiLimitations || [];
       
       const result = {
         score: 100,
@@ -645,7 +668,8 @@
         hasScreenshot: hasScreenshot || !!finalScreenshotUrl,
         screenshotUrl: finalScreenshotUrl,
         aiSummary: aiAnalysis?.summary || '',
-        overallAssessment: aiAnalysis?.overallAssessment || ''
+        overallAssessment: aiAnalysis?.overallAssessment || '',
+        limitations: limitations
       };
       
       if (aiAnalysis && aiAnalysis.results) {
@@ -1014,6 +1038,21 @@
           <span class="font-bold text-lg" style="color: ${r.grade.color}">${r.score}점</span>
         </div>
       `;
+
+      // 분석 제한사항 리포트 표시
+      const lc = document.getElementById('limitationsCard');
+      const ll = document.getElementById('limitationsList');
+      if (r.limitations && r.limitations.length > 0) {
+        lc.classList.remove('hidden');
+        ll.innerHTML = r.limitations.map(limitation => `
+          <li class="flex items-start space-x-2 text-amber-800 bg-amber-100 rounded-lg p-3">
+            <span class="text-lg">📋</span>
+            <span class="text-sm">${limitation}</span>
+          </li>
+        `).join('');
+      } else {
+        lc.classList.add('hidden');
+      }
 
       // 위반 항목
       const vc = document.getElementById('violationsCard');

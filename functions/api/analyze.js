@@ -48,35 +48,42 @@ export async function onRequest(context) {
     // 1. 로그인 필요 여부 사전 체크 (전후사진/후기 관련 항목)
     const loginCheckResults = await checkLoginRequirements(url, text, suspectedViolations);
 
-    // 2. 스크린샷 URL 생성 (WordPress mshots - 한국 사이트 지원 좋음)
-    const screenshotUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=1280`;
+    // 2. Railway Puppeteer API로 스크린샷 캡처 (팝업/플로팅 배너 제거됨)
+    const SCREENSHOT_API = 'https://puppeteer-screenshot-api-production.up.railway.app';
+    const screenshotApiUrl = `${SCREENSHOT_API}/screenshot?url=${encodeURIComponent(url)}&width=1280&height=900&format=base64`;
     
-    // 3. 스크린샷 가져와서 Claude Vision에 전달
     let screenshotBase64 = null;
     let screenshotAvailable = false;
     
-    // 여러 서비스 시도
-    const screenshotServices = [
-      `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=1280`,
-      `https://image.thum.io/get/width/1280/${encodeURIComponent(url)}`,
-    ];
-    
-    for (const serviceUrl of screenshotServices) {
-      if (screenshotAvailable) break;
+    try {
+      const screenshotResponse = await fetch(screenshotApiUrl, {
+        headers: { 'Accept': 'application/json' },
+        timeout: 45000
+      });
       
+      if (screenshotResponse.ok) {
+        const data = await screenshotResponse.json();
+        if (data.success && data.screenshot) {
+          screenshotBase64 = data.screenshot;
+          screenshotAvailable = true;
+          console.log('Screenshot captured via Railway Puppeteer API');
+        }
+      }
+    } catch (e) {
+      console.error('Railway Screenshot API error:', e.message);
+      
+      // 폴백: WordPress mshots 사용
       try {
-        const screenshotResponse = await fetch(serviceUrl, {
+        const fallbackUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(url)}?w=1280`;
+        const fallbackResponse = await fetch(fallbackUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
         });
         
-        if (screenshotResponse.ok) {
-          const contentType = screenshotResponse.headers.get('content-type');
-          // 이미지인지 확인 (일부 서비스는 에러 시 HTML 반환)
+        if (fallbackResponse.ok) {
+          const contentType = fallbackResponse.headers.get('content-type');
           if (contentType && contentType.includes('image')) {
-            const arrayBuffer = await screenshotResponse.arrayBuffer();
+            const arrayBuffer = await fallbackResponse.arrayBuffer();
             const uint8Array = new Uint8Array(arrayBuffer);
-            
-            // Cloudflare Workers 호환 base64 인코딩
             let binary = '';
             const chunkSize = 8192;
             for (let i = 0; i < uint8Array.length; i += chunkSize) {
@@ -85,13 +92,16 @@ export async function onRequest(context) {
             }
             screenshotBase64 = btoa(binary);
             screenshotAvailable = true;
-            console.log('Screenshot captured from:', serviceUrl);
+            console.log('Screenshot captured via fallback (WordPress mshots)');
           }
         }
-      } catch (e) {
-        console.error('Screenshot error from', serviceUrl, ':', e.message);
+      } catch (fallbackError) {
+        console.error('Fallback screenshot error:', fallbackError.message);
       }
     }
+
+    // 3. 프론트엔드용 스크린샷 URL (이미지 직접 표시용)
+    const screenshotUrl = `${SCREENSHOT_API}/screenshot?url=${encodeURIComponent(url)}&width=1280&height=900&format=image`;
 
     // 4. Claude Vision API 호출
     const messages = [];
@@ -141,12 +151,20 @@ export async function onRequest(context) {
     const data = await response.json();
     const analysisResult = parseAnalysisResult(data.content[0].text);
 
+    // 분석 제한사항 수집
+    const limitations = analysisResult.analysisLimitations || [];
+    if (!screenshotAvailable) {
+      limitations.unshift('⚠️ 스크린샷 캡처 실패 - 대상 사이트가 봇을 차단하거나 접근이 제한되어 있습니다. 텍스트 기반 분석만 수행되었습니다.');
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         analysis: analysisResult,
         screenshotUrl: screenshotUrl,
         hasScreenshot: screenshotAvailable,
+        screenshotSource: screenshotAvailable ? 'railway' : 'none',
+        limitations: limitations,
         loginCheckResults,
         analyzedAt: new Date().toISOString()
       }),
@@ -346,6 +364,21 @@ ${analysisMode}
 
 이 경우 isViolation: false로 판정하고, reason에 "로그인 필요 콘텐츠로 확인됨"을 명시하세요.
 
+### ⭐ 수상 내역/인증 예외 (매우 중요)
+"최고", "1위", "No.1", "베스트" 등의 표현이라도 **공인된 수상 내역이나 인증**인 경우 허용됩니다:
+
+**허용되는 경우 (isViolation: false):**
+- 대괄호 [] 안에 수상 내역이 명시된 경우: "[2024 한국소비자평가 1위]", "[소비자 선정 최고의 브랜드 대상]"
+- 수상/선정 주체(언론사, 기관명)가 명시된 경우: "조선일보 선정 베스트 클리닉"
+- 수상, 선정, 인증, 대상, 어워드 등의 단어와 함께 사용된 경우
+- 날짜와 함께 객관적 사실로 기술된 경우: "2024년 대한피부과의사회 회장 당선"
+
+**위반인 경우 (isViolation: true):**
+- 근거 없이 단독으로 사용: "최고의 피부과", "1위 병원", "No.1 클리닉"
+- 자체적으로 주장하는 표현: "대한민국 최고", "업계 1위"
+
+수상 내역을 위반으로 판정하면 안 됩니다. 확실하지 않으면 confidence: "low"로 설정하세요.
+
 ### 기타 판단 기준
 1. **메뉴명/버튼명**: 네비게이션, 사이드바, 푸터 등에 있는 메뉴 텍스트 자체는 위반 아님
    - 단, 해당 메뉴 클릭 시 로그인 없이 전후사진이 바로 보인다면 → 위반
@@ -372,6 +405,9 @@ ${analysisMode}
       "reason": "시각적 위치와 맥락을 기반으로 판단 이유 설명 (친절한 톤). 로그인 필요 여부를 반드시 언급.",
       "suggestion": "수정이 필요한 경우 구체적인 수정 제안"
     }
+  ],
+  "analysisLimitations": [
+    "분석 과정에서 발생한 제한사항이나 주의사항을 기술 (예: '스크린샷이 불완전하여 일부 영역 확인 불가', '수상 내역 여부 확인 필요')"
   ],
   "overallAssessment": "전체 페이지에 대한 종합 의견 (로그인 필요 콘텐츠 여부 포함)",
   "summary": "분석 요약 (친절한 톤)"

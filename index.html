@@ -145,24 +145,7 @@
     </div>
 
     <div class="bg-white rounded-2xl shadow-lg border p-6 md:p-8 mb-8">
-      <div class="flex space-x-2 mb-6">
-        <button id="tabText" onclick="switchTab('text')" class="tab-btn px-5 py-2.5 rounded-xl font-medium transition-all bg-primary text-white">📝 텍스트 입력</button>
-        <button id="tabUrl" onclick="switchTab('url')" class="tab-btn px-5 py-2.5 rounded-xl font-medium transition-all bg-gray-100 text-gray-600 hover:bg-gray-200">🔗 URL 검사</button>
-      </div>
-
-      <div id="inputText" class="input-area">
-        <label class="block text-sm font-semibold text-gray-700 mb-3">검사할 광고 문구를 입력하세요</label>
-        <textarea id="textInput" placeholder="블로그 글, SNS 포스팅, 홈페이지 문구 등을 붙여넣기 하세요..." class="w-full h-48 p-4 border-2 border-gray-200 rounded-xl resize-none text-gray-800 placeholder-gray-400 transition-all"></textarea>
-        <div class="flex justify-between items-center mt-4">
-          <div class="flex items-center space-x-4">
-            <span id="charCount" class="text-sm text-gray-500">0자</span>
-            <button onclick="loadSample()" class="text-sm text-primary hover:text-primary-dark font-medium">📄 샘플 불러오기</button>
-            <button onclick="clearInput()" class="text-sm text-gray-500 hover:text-gray-700">🗑️ 지우기</button>
-          </div>
-        </div>
-      </div>
-
-      <div id="inputUrl" class="input-area hidden">
+      <div id="inputUrl" class="input-area">
         <label class="block text-sm font-semibold text-gray-700 mb-3">검사할 페이지 URL</label>
         <input id="urlInput" type="url" placeholder="https://blog.naver.com/example/123456789" class="w-full p-4 border-2 border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 transition-all"/>
         <div class="mt-3 flex items-start space-x-2 text-sm text-gray-500">
@@ -690,7 +673,7 @@
                 aiConfidence: aiResult.confidence,
                 visualLocation: aiResult.visualLocation,
                 requiresLogin: aiResult.requiresLogin,
-                boundingBox: aiResult.boundingBox,
+                elementPath: aiResult.elementPath,
                 deduction: 10
               };
               result.violations.push(violation);
@@ -706,7 +689,7 @@
                 aiReason: aiResult.reason,
                 visualLocation: aiResult.visualLocation,
                 requiresLogin: aiResult.requiresLogin,
-                boundingBox: aiResult.boundingBox
+                elementPath: aiResult.elementPath
               });
             }
             return;
@@ -722,7 +705,7 @@
               aiConfidence: aiResult.confidence,
               visualLocation: aiResult.visualLocation,
               requiresLogin: aiResult.requiresLogin,
-              boundingBox: aiResult.boundingBox,
+              elementPath: aiResult.elementPath,
               deduction
             });
             result.score -= deduction;
@@ -733,7 +716,7 @@
               aiReason: aiResult.reason,
               visualLocation: aiResult.visualLocation,
               requiresLogin: aiResult.requiresLogin,
-              boundingBox: aiResult.boundingBox
+              elementPath: aiResult.elementPath
             });
           }
         });
@@ -852,27 +835,6 @@
     // ============================================
     // UI
     // ============================================
-    let currentTab = 'text';
-    const textInput = document.getElementById('textInput');
-    const charCount = document.getElementById('charCount');
-    textInput.addEventListener('input', () => { charCount.textContent = textInput.value.length.toLocaleString() + '자'; });
-    
-    function switchTab(tab) {
-      currentTab = tab;
-      document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('bg-primary', 'text-white'); b.classList.add('bg-gray-100', 'text-gray-600'); });
-      document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.remove('bg-gray-100', 'text-gray-600');
-      document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('bg-primary', 'text-white');
-      document.querySelectorAll('.input-area').forEach(a => a.classList.add('hidden'));
-      document.getElementById('input' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.remove('hidden');
-    }
-    
-    function loadSample() {
-      textInput.value = `강남 피부과 No.1! 국내 최초 레이저 시술법으로 100% 효과 보장!\n\n✨ 시술 전후 비포애프터 사진을 확인하세요!\n실제 환자 인터뷰 영상도 공개합니다.\n\n🎁 1월 한정 이벤트!\n지금 예약하시면 50% 할인 + 사은품 증정!\n친구 추천하면 캐시백 5만원!\n\n최고의 의료진이 최상의 결과를 약속드립니다.\n연예인 단골 병원, 스타들의 선택!\n독보적인 노하우와 최다 시술 경험!`;
-      charCount.textContent = textInput.value.length.toLocaleString() + '자';
-    }
-    
-    function clearInput() { textInput.value = ''; charCount.textContent = '0자'; }
-
     function updateProgress(text, percent) {
       document.getElementById('progressText').textContent = text;
       document.getElementById('progressPercent').textContent = percent + '%';
@@ -931,29 +893,28 @@
       let textToAnalyze = '';
       let urlToAnalyze = '';
 
-      if (currentTab === 'text') {
-        textToAnalyze = textInput.value.trim();
-        if (!textToAnalyze) {
-          alert('검사할 문구를 입력해주세요.');
-          return;
-        }
-      } else {
-        urlToAnalyze = document.getElementById('urlInput').value.trim();
-        if (!urlToAnalyze) {
-          alert('URL을 입력해주세요.');
-          return;
-        }
-        
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner mr-2"></span> 구조 분석 중...';
-        
-        textToAnalyze = await crawlUrl(urlToAnalyze);
-        // 크롤링 실패해도 URL이 있으면 AI Vision 분석 진행
-        if (!textToAnalyze) {
-          textToAnalyze = ''; // 빈 텍스트로 설정
-        }
-        analyzedSourceUrl = urlToAnalyze;
+      // URL 검사만 지원
+      urlToAnalyze = document.getElementById('urlInput').value.trim();
+      if (!urlToAnalyze) {
+        alert('URL을 입력해주세요.');
+        return;
       }
+      
+      // URL 형식 검증
+      if (!urlToAnalyze.startsWith('http://') && !urlToAnalyze.startsWith('https://')) {
+        urlToAnalyze = 'https://' + urlToAnalyze;
+        document.getElementById('urlInput').value = urlToAnalyze;
+      }
+      
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner mr-2"></span> 구조 분석 중...';
+      
+      textToAnalyze = await crawlUrl(urlToAnalyze);
+      // 크롤링 실패해도 URL이 있으면 AI Vision 분석 진행
+      if (!textToAnalyze) {
+        textToAnalyze = ''; // 빈 텍스트로 설정
+      }
+      analyzedSourceUrl = urlToAnalyze;
 
       originalText = textToAnalyze;
       btn.disabled = true;
@@ -1062,36 +1023,29 @@
         vl.innerHTML = r.violations.map((v, idx) => {
           const caseData = penaltyCases[v.key] || {};
           
-          // 스크린샷 + 마킹 HTML
+          // 스크린샷 + 위치 설명 HTML (마킹 없이)
           let screenshotHtml = '';
           if (r.screenshotUrl) {
-            const hasBox = v.boundingBox && v.boundingBox.x !== undefined;
-            const imgId = `screenshot-img-${idx}`;
-            const escapedUrl = analyzedSourceUrl.replace(/'/g, "\\'");
             screenshotHtml = `
               <div class="mb-5">
-                <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치 (페이지 스크린샷)</p>
-                <div class="screenshot-container" id="screenshot-${idx}">
+                <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치</p>
+                ${v.elementPath ? `
+                  <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <p class="text-sm text-red-800">
+                      <span class="font-semibold">🎯 위치:</span> ${v.elementPath}
+                    </p>
+                  </div>
+                ` : ''}
+                <div class="screenshot-container">
                   <img 
-                    id="${imgId}"
                     src="${r.screenshotUrl}" 
                     alt="페이지 스크린샷" 
                     class="loading"
                     data-service-index="0"
-                    data-url="${escapedUrl}"
+                    data-url="${analyzedSourceUrl.replace(/'/g, "\\'")}"
                     onload="this.classList.remove('loading')"
                     onerror="handleScreenshotError(this, this.dataset.url)"
                   />
-                  ${hasBox ? `
-                    <div class="marker-box" style="
-                      left: ${v.boundingBox.x}%;
-                      top: ${v.boundingBox.y}%;
-                      width: ${Math.max(v.boundingBox.width, 5)}%;
-                      height: ${Math.max(v.boundingBox.height, 3)}%;
-                    ">
-                      <span class="marker-label">${v.matches[0]}</span>
-                    </div>
-                  ` : ''}
                 </div>
                 ${v.contexts && v.contexts.length > 0 ? `
                   <div class="context-box mt-3">
@@ -1102,10 +1056,16 @@
               </div>
             `;
           } else if (v.contexts && v.contexts.length > 0) {
-            // 스크린샷 없이 텍스트만
             screenshotHtml = `
               <div class="mb-5">
                 <p class="text-sm font-semibold text-gray-700 mb-2">📍 발견된 위치</p>
+                ${v.elementPath ? `
+                  <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <p class="text-sm text-red-800">
+                      <span class="font-semibold">🎯 위치:</span> ${v.elementPath}
+                    </p>
+                  </div>
+                ` : ''}
                 <div class="context-box">${highlightContext(v.contexts[0].context, v.matches)}</div>
               </div>
             `;
@@ -1197,30 +1157,13 @@
       if (r.safeItems.length > 0) {
         sc.classList.remove('hidden');
         sl.innerHTML = r.safeItems.map((v, idx) => {
-          let screenshotHtml = '';
-          if (r.screenshotUrl && v.boundingBox) {
-            const escapedUrl = analyzedSourceUrl.replace(/'/g, "\\'");
-            screenshotHtml = `
-              <div class="mt-3">
-                <div class="screenshot-container" style="max-height: 250px;">
-                  <img 
-                    src="${r.screenshotUrl}" 
-                    alt="페이지 스크린샷"
-                    class="loading"
-                    data-service-index="0"
-                    data-url="${escapedUrl}"
-                    onload="this.classList.remove('loading')"
-                    onerror="handleScreenshotError(this, this.dataset.url)"
-                  />
-                  <div class="marker-box safe" style="
-                    left: ${v.boundingBox.x}%;
-                    top: ${v.boundingBox.y}%;
-                    width: ${Math.max(v.boundingBox.width, 5)}%;
-                    height: ${Math.max(v.boundingBox.height, 3)}%;
-                  ">
-                    <span class="marker-label safe">${v.matches[0]}</span>
-                  </div>
-                </div>
+          let locationHtml = '';
+          if (v.elementPath) {
+            locationHtml = `
+              <div class="mt-2 bg-green-50 border border-green-200 rounded-lg p-2">
+                <p class="text-xs text-green-800">
+                  <span class="font-semibold">🎯 위치:</span> ${v.elementPath}
+                </p>
               </div>
             `;
           }
@@ -1237,7 +1180,7 @@
               <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">✅ 문제없음</span>
             </div>
             ${v.aiReason ? `<p class="text-sm text-green-700 mt-2">🖼️ ${v.aiReason}</p>` : ''}
-            ${screenshotHtml}
+            ${locationHtml}
           </div>
         `}).join('');
       } else {
@@ -1265,7 +1208,7 @@
       document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     
-    textInput.addEventListener('keydown', e => { if (e.key === 'Enter' && e.ctrlKey) analyze(); });
+    document.getElementById('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
   </script>
 </body>
 </html>
